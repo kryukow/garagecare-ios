@@ -1,0 +1,3 @@
+# GarageCare
+
+Public source snapshot.
