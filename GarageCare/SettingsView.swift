@@ -118,18 +118,24 @@ struct SettingsView: View {
                     Button {
                         showingImporter = true
                     } label: {
-                        Label("Восстановить из файла", systemImage: "square.and.arrow.down")
+                        Label("Восстановить из JSON", systemImage: "square.and.arrow.down")
                     }
+                } header: {
+                    Text("Резервная копия JSON")
+                } footer: {
+                    Text("JSON сохраняет все автомобили, регламенты, историю обслуживания, пробег, заправки, расходы и фотографии. Для полного восстановления нужен только JSON-файл.")
+                }
 
+                Section {
                     Button {
                         prepareCSVExport()
                     } label: {
                         Label("Экспортировать историю CSV", systemImage: "tablecells")
                     }
                 } header: {
-                    Text("Резервная копия")
+                    Text("Таблица истории CSV")
                 } footer: {
-                    Text("Системное окно «Файлы» позволит сохранить копию в iCloud Drive или локально. В копию входят автомобили, работы, пробег, заправки, расходы и фотографии.")
+                    Text("CSV нужен для Excel и Google Sheets. Это не резервная копия: повторно импортировать его после восстановления JSON не требуется.")
                 }
 
                 Section("Экспорт PDF") {
@@ -262,8 +268,10 @@ struct SettingsView: View {
     }
 
     private func importFile(_ result: Result<URL, Error>) {
+        importedPayload = nil
         do {
             let url = try result.get()
+            try BackupImportFormat.validate(filename: url.lastPathComponent)
             let accessing = url.startAccessingSecurityScopedResource()
 
             defer {
@@ -282,8 +290,12 @@ struct SettingsView: View {
             try BackupValidator.validate(payload)
             importedPayload = payload
             activeAlert = .confirmImport
+        } catch let error as BackupValidationError {
+            activeAlert = .message(error.localizedDescription)
+        } catch is DecodingError {
+            activeAlert = .message("Выбранный JSON не является резервной копией «Мой гараж» или повреждён. Выбери исходный GarageCare-backup.json, сохранённый через настройки приложения.")
         } catch {
-            activeAlert = .message("Не удалось прочитать файл: \(error.localizedDescription)")
+            activeAlert = .message("Не удалось прочитать резервную копию: \(error.localizedDescription)")
         }
     }
 
@@ -430,7 +442,7 @@ private struct BackupFilePicker: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
         let picker = UIDocumentPickerViewController(
-            forOpeningContentTypes: [.json, .plainText, .data],
+            forOpeningContentTypes: [.json],
             asCopy: true
         )
         picker.delegate = context.coordinator
