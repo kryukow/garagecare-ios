@@ -98,19 +98,20 @@ struct GarageScreenBackground: View {
 }
 
 extension MaintenanceTask {
-    func displayProgress(currentMileage: Int) -> Double {
-        let value = progress(currentMileage: currentMileage)
+    func displayProgress(currentMileage: Int, currentEngineHours: Double = 0) -> Double {
+        let value = progress(currentMileage: currentMileage, currentEngineHours: currentEngineHours)
         return value.isFinite ? min(max(value, 0), 1) : 0
     }
 
-    func displayColor(currentMileage: Int, warningKm: Int, warningDays: Int) -> Color {
+    func displayColor(currentMileage: Int, warningKm: Int, warningDays: Int, currentEngineHours: Double = 0) -> Color {
         let dueState = state(
             currentMileage: currentMileage,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningDays: warningDays,
+            currentEngineHours: currentEngineHours
         )
         return Color.maintenanceStatus(
-            progress: displayProgress(currentMileage: currentMileage),
+            progress: displayProgress(currentMileage: currentMileage, currentEngineHours: currentEngineHours),
             state: dueState
         )
     }
