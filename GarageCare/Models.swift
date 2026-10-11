@@ -11,6 +11,7 @@ final class Vehicle {
     var year: Int
     var vin: String
     var currentMileage: Int
+    var engineHours: Double = 0
     var notes: String
     var expectedFuelConsumption: Double = 0
     @Attribute(.externalStorage) var imageData: Data?
@@ -23,6 +24,7 @@ final class Vehicle {
         year: Int,
         vin: String = "",
         currentMileage: Int,
+        engineHours: Double = 0,
         notes: String = "",
         expectedFuelConsumption: Double = 0,
         imageData: Data? = nil,
@@ -34,6 +36,7 @@ final class Vehicle {
         self.year = year
         self.vin = vin
         self.currentMileage = currentMileage
+        self.engineHours = engineHours
         self.notes = notes
         self.expectedFuelConsumption = expectedFuelConsumption
         self.imageData = imageData
@@ -52,6 +55,8 @@ final class MaintenanceTask {
     var title: String
     var intervalKm: Int
     var intervalMonths: Int
+    var intervalEngineHours: Double = 0
+    var lastEngineHours: Double = 0
     var lastMileage: Int
     var lastDate: Date
     var notes: String
@@ -63,6 +68,8 @@ final class MaintenanceTask {
         title: String,
         intervalKm: Int = 0,
         intervalMonths: Int = 0,
+        intervalEngineHours: Double = 0,
+        lastEngineHours: Double = 0,
         lastMileage: Int,
         lastDate: Date = .now,
         notes: String = "",
@@ -73,6 +80,8 @@ final class MaintenanceTask {
         self.title = title
         self.intervalKm = intervalKm
         self.intervalMonths = intervalMonths
+        self.intervalEngineHours = intervalEngineHours
+        self.lastEngineHours = lastEngineHours
         self.lastMileage = lastMileage
         self.lastDate = lastDate
         self.notes = notes
@@ -88,6 +97,11 @@ final class MaintenanceTask {
         return nextMileage - currentMileage
     }
 
+    func engineHoursRemaining(currentEngineHours: Double) -> Double? {
+        guard intervalEngineHours > 0 else { return nil }
+        return lastEngineHours + intervalEngineHours - currentEngineHours
+    }
+
     func nextDate(calendar: Calendar = .current) -> Date? {
         guard intervalMonths > 0 else { return nil }
         return calendar.date(byAdding: .month, value: intervalMonths, to: lastDate)
@@ -100,12 +114,17 @@ final class MaintenanceTask {
         return calendar.dateComponents([.day], from: start, to: end).day
     }
 
-    func progress(currentMileage: Int, now: Date = .now) -> Double {
+    func progress(currentMileage: Int, currentEngineHours: Double = 0, now: Date = .now) -> Double {
         var values: [Double] = []
 
         if intervalKm > 0 {
             let travelled = max(0, currentMileage - lastMileage)
             values.append(min(1, Double(travelled) / Double(intervalKm)))
+        }
+
+        if intervalEngineHours > 0 {
+            let used = max(0, currentEngineHours - lastEngineHours)
+            values.append(min(1, used / intervalEngineHours))
         }
 
         if intervalMonths > 0, let nextDate = nextDate() {
@@ -123,18 +142,20 @@ final class MaintenanceTask {
         currentMileage: Int,
         warningKm: Int,
         warningDays: Int,
+        currentEngineHours: Double = 0,
         now: Date = .now
     ) -> DueState {
         let km = kilometersRemaining(currentMileage: currentMileage)
         let days = daysRemaining(now: now)
+        let hours = engineHoursRemaining(currentEngineHours: currentEngineHours)
 
-        if (km.map { $0 < 0 } ?? false) || (days.map { $0 < 0 } ?? false) {
+        if (km.map { $0 < 0 } ?? false) || (days.map { $0 < 0 } ?? false) || (hours.map { $0 < 0 } ?? false) {
             return .overdue
         }
-        if (km.map { $0 <= warningKm } ?? false) || (days.map { $0 <= warningDays } ?? false) {
+        if (km.map { $0 <= warningKm } ?? false) || (days.map { $0 <= warningDays } ?? false) || (hours.map { $0 <= 10 } ?? false) {
             return .soon
         }
-        if km == nil && days == nil {
+        if km == nil && days == nil && hours == nil {
             return .notConfigured
         }
         return .good
@@ -152,6 +173,8 @@ final class ServiceRecord {
     var cost: Double
     var currency: String
     var notes: String
+    var parts: String = ""
+    @Attribute(.externalStorage) var receiptImageData: Data?
 
     init(
         id: UUID = UUID(),
@@ -162,7 +185,9 @@ final class ServiceRecord {
         date: Date = .now,
         cost: Double = 0,
         currency: String = "EUR",
-        notes: String = ""
+        notes: String = "",
+        parts: String = "",
+        receiptImageData: Data? = nil
     ) {
         self.id = id
         self.vehicleID = vehicleID
@@ -173,6 +198,8 @@ final class ServiceRecord {
         self.cost = cost
         self.currency = currency
         self.notes = notes
+        self.parts = parts
+        self.receiptImageData = receiptImageData
     }
 }
 
@@ -202,6 +229,7 @@ final class FuelEntry {
     var amount: Double
     var currency: String
     var isFullTank: Bool
+    var fuelType: String = "Бензин"
     var notes: String
 
     init(
@@ -213,6 +241,7 @@ final class FuelEntry {
         amount: Double,
         currency: String = "EUR",
         isFullTank: Bool = true,
+        fuelType: String = "Бензин",
         notes: String = ""
     ) {
         self.id = id
@@ -223,6 +252,7 @@ final class FuelEntry {
         self.amount = amount
         self.currency = currency
         self.isFullTank = isFullTank
+        self.fuelType = fuelType
         self.notes = notes
     }
 
@@ -251,9 +281,15 @@ enum FuelStatisticsCalculator {
         var result: [FuelConsumptionPoint] = []
         var previousFullMileage: Int?
         var accumulatedLiters = 0.0
+        var activeFuelType: String?
 
         for entry in sorted {
             guard entry.liters > 0 else { continue }
+            if let activeFuelType, activeFuelType != entry.fuelType {
+                previousFullMileage = nil
+                accumulatedLiters = 0
+            }
+            activeFuelType = entry.fuelType
 
             if previousFullMileage == nil {
                 if entry.isFullTank {
@@ -288,6 +324,7 @@ enum FuelStatisticsCalculator {
     }
 
     static func averageConsumption(entries: [FuelEntry]) -> Double? {
+        guard Set(entries.map(\.fuelType)).count <= 1 else { return nil }
         let points = consumptionPoints(entries: entries)
         let totalDistance = points.reduce(0) { $0 + $1.distance }
         let totalLiters = points.reduce(0.0) { $0 + $1.liters }
