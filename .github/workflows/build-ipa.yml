@@ -1,0 +1,64 @@
+name: Собрать IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 25
+
+    steps:
+      - name: Получить исходники
+        uses: actions/checkout@v4
+
+      - name: Проверить Xcode 27
+        shell: bash
+        run: |
+          xcodebuild -version
+          SDK_VERSION="$(xcrun --sdk iphoneos --show-sdk-version)"
+          echo "iOS SDK: $SDK_VERSION"
+          XCODE_MAJOR="$(xcodebuild -version | awk '/Xcode/{print $2}' | cut -d. -f1)"
+          if [[ "$XCODE_MAJOR" != "27" ]]; then
+            echo "Ожидался Xcode 27, получен Xcode $XCODE_MAJOR"
+            exit 1
+          fi
+
+      - name: Установить XcodeGen
+        run: brew install xcodegen
+
+      - name: Создать Xcode-проект
+        run: xcodegen generate
+
+      - name: Собрать unsigned app для iPhone
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild clean build \
+            -project GarageCare.xcodeproj \
+            -scheme GarageCare \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath "$RUNNER_TEMP/GarageCareDerived" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Упаковать unsigned IPA
+        shell: bash
+        run: |
+          APP="$RUNNER_TEMP/GarageCareDerived/Build/Products/Release-iphoneos/GarageCare.app"
+          test -d "$APP" || { echo "GarageCare.app не найден"; exit 1; }
+
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
+          (cd "$RUNNER_TEMP/ipa" && /usr/bin/zip -qry "$RUNNER_TEMP/GarageCare-Unsigned.ipa" Payload)
+          /usr/bin/unzip -t "$RUNNER_TEMP/GarageCare-Unsigned.ipa" >/dev/null
+
+      - name: Загрузить IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: GarageCare-Unsigned-IPA
+          path: ${{ runner.temp }}/GarageCare-Unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
