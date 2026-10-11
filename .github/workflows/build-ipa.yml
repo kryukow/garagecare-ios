@@ -1,6 +1,8 @@
 name: Собрать IPA
 
 on:
+  push:
+    branches: [feature/garagecare-1-4-public]
   workflow_dispatch:
 
 jobs:
