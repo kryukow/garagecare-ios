@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftData
 import SwiftUI
 
@@ -14,6 +15,7 @@ struct TaskDetailView: View {
     @State private var records: [ServiceRecord] = []
     @State private var activeSheet: ActiveSheet?
     @State private var showingDeleteAlert = false
+    @State private var deletionError: String?
 
     private enum ActiveSheet: Int, Identifiable {
         case editor
@@ -36,6 +38,11 @@ struct TaskDetailView: View {
 
                     LabeledContent("По времени") {
                         Text(task.intervalMonths > 0 ? "\(task.intervalMonths) мес." : "Не задан")
+                    }
+
+                    Divider()
+                    LabeledContent("По моточасам") {
+                        Text(task.intervalEngineHours > 0 ? String(format: "%.1f мч", task.intervalEngineHours) : "Не задан")
                     }
 
                     Divider()
@@ -128,7 +135,12 @@ struct TaskDetailView: View {
                 deleteTask()
             }
         } message: {
-            Text("Связанная с ней история тоже будет удалена.")
+            Text("История останется доступной, а связь с удалённым регламентом будет снята.")
+        }
+        .alert("Ошибка сохранения", isPresented: Binding(get: { deletionError != nil }, set: { if !$0 { deletionError = nil } })) {
+            Button("OK", role: .cancel) { deletionError = nil }
+        } message: {
+            Text(deletionError ?? "")
         }
         .task {
             loadRecords()
@@ -155,13 +167,15 @@ struct TaskDetailView: View {
         let state = task.state(
             currentMileage: vehicle.currentMileage,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningDays: warningDays,
+            currentEngineHours: vehicle.engineHours
         )
-        let safeProgress = task.displayProgress(currentMileage: vehicle.currentMileage)
+        let safeProgress = task.displayProgress(currentMileage: vehicle.currentMileage, currentEngineHours: vehicle.engineHours)
         let statusColor = task.displayColor(
             currentMileage: vehicle.currentMileage,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningDays: warningDays,
+            currentEngineHours: vehicle.engineHours
         )
 
         return VStack(alignment: .leading, spacing: 15) {
@@ -185,8 +199,8 @@ struct TaskDetailView: View {
 
             GarageProgressBar(progress: safeProgress, color: statusColor)
 
-            if task.intervalKm == 0 && task.intervalMonths == 0 {
-                Text("Задай пробег или срок — после этого появится расчёт ресурса.")
+            if task.intervalKm == 0 && task.intervalMonths == 0 && task.intervalEngineHours == 0 {
+                Text("Задай пробег, срок или моточасы — после этого появится расчёт ресурса.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
@@ -200,6 +214,14 @@ struct TaskDetailView: View {
                                     ? "Осталось \(Formatters.mileage(km))"
                                     : "Просрочено на \(Formatters.mileage(abs(km)))"
                             )
+                        }
+                    }
+
+                    if let hours = task.engineHoursRemaining(currentEngineHours: vehicle.engineHours) {
+                        HStack(spacing: 7) {
+                            Image(systemName: "gauge.with.dots.needle.50percent")
+                                .foregroundStyle(statusColor)
+                            Text(String(format: hours >= 0 ? "Осталось %.1f мч" : "Просрочено на %.1f мч", abs(hours)))
                         }
                     }
 
@@ -253,11 +275,16 @@ struct TaskDetailView: View {
 
     private func deleteTask() {
         loadRecords()
-        NotificationManager.shared.cancelNotifications(for: task)
-        records.forEach { modelContext.delete($0) }
+        records.forEach { $0.taskID = nil }
         modelContext.delete(task)
-        try? modelContext.save()
-        dismiss()
+        do {
+            try modelContext.save()
+            NotificationManager.shared.cancelNotifications(for: task)
+            dismiss()
+        } catch {
+            modelContext.rollback()
+            deletionError = error.localizedDescription
+        }
     }
 }
 
@@ -273,9 +300,12 @@ struct TaskEditorView: View {
     @State private var title: String
     @State private var intervalKm: String
     @State private var intervalMonths: String
+    @State private var intervalEngineHours: String
+    @State private var lastEngineHours: String
     @State private var lastMileage: String
     @State private var lastDate: Date
     @State private var notes: String
+    @State private var errorMessage: String?
 
     init(vehicle: Vehicle, task: MaintenanceTask? = nil) {
         self.vehicle = vehicle
@@ -283,6 +313,8 @@ struct TaskEditorView: View {
         _title = State(initialValue: task?.title ?? "")
         _intervalKm = State(initialValue: task.map { $0.intervalKm > 0 ? String($0.intervalKm) : "" } ?? "")
         _intervalMonths = State(initialValue: task.map { $0.intervalMonths > 0 ? String($0.intervalMonths) : "" } ?? "")
+        _intervalEngineHours = State(initialValue: task.map { $0.intervalEngineHours > 0 ? String($0.intervalEngineHours) : "" } ?? "")
+        _lastEngineHours = State(initialValue: String(task?.lastEngineHours ?? vehicle.engineHours))
         _lastMileage = State(initialValue: String(task?.lastMileage ?? vehicle.currentMileage))
         _lastDate = State(initialValue: task?.lastDate ?? .now)
         _notes = State(initialValue: task?.notes ?? "")
@@ -291,7 +323,7 @@ struct TaskEditorView: View {
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         Int(lastMileage.filter(\.isNumber)) != nil &&
-        ((Int(intervalKm.filter(\.isNumber)) ?? 0) > 0 || (Int(intervalMonths.filter(\.isNumber)) ?? 0) > 0)
+        ((Int(intervalKm.filter(\.isNumber)) ?? 0) > 0 || (Int(intervalMonths.filter(\.isNumber)) ?? 0) > 0 || (Double(intervalEngineHours.replacingOccurrences(of: ",", with: ".")) ?? 0) > 0)
     }
 
     var body: some View {
@@ -299,6 +331,12 @@ struct TaskEditorView: View {
             Form {
                 Section("Работа") {
                     TextField("Название", text: $title)
+                    Button("HU / TÜV — 24 месяца") {
+                        title = "HU / TÜV"
+                        intervalMonths = "24"
+                        intervalKm = ""
+                        intervalEngineHours = ""
+                    }
                 }
 
                 Section {
@@ -306,21 +344,28 @@ struct TaskEditorView: View {
                         .keyboardType(.numberPad)
                     TextField("Месяцы", text: $intervalMonths)
                         .keyboardType(.numberPad)
+                    TextField("Моточасы", text: $intervalEngineHours)
+                        .keyboardType(.decimalPad)
                 } header: {
                     Text("Интервал")
                 } footer: {
-                    Text("Можно задать пробег, срок или оба условия. Сработает то, которое наступит раньше.")
+                    Text("Можно задать пробег, срок и моточасы. Сработает первое достигнутое условие.")
                 }
 
                 Section("Последний раз выполнено") {
                     TextField("Пробег", text: $lastMileage)
                         .keyboardType(.numberPad)
+                    TextField("Моточасы на момент ТО", text: $lastEngineHours)
+                        .keyboardType(.decimalPad)
                     DatePicker("Дата", selection: $lastDate, displayedComponents: .date)
                 }
 
                 Section("Заметка") {
                     TextField("Масло, артикулы, допуски и другое", text: $notes, axis: .vertical)
                         .lineLimit(2...6)
+                }
+                if let errorMessage {
+                    Text(errorMessage).foregroundStyle(.red)
                 }
             }
             .scrollContentBackground(.hidden)
@@ -343,6 +388,12 @@ struct TaskEditorView: View {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let kmInterval = Int(intervalKm.filter(\.isNumber)) ?? 0
         let monthInterval = Int(intervalMonths.filter(\.isNumber)) ?? 0
+        let hourInterval = Double(intervalEngineHours.replacingOccurrences(of: ",", with: ".")) ?? 0
+        let lastHours = Double(lastEngineHours.replacingOccurrences(of: ",", with: ".")) ?? 0
+        guard hourInterval.isFinite, lastHours.isFinite, hourInterval >= 0, lastHours >= 0 else {
+            errorMessage = "Неверное значение моточасов."
+            return
+        }
         let mileage = Int(lastMileage.filter(\.isNumber)) ?? vehicle.currentMileage
 
         let savedTask: MaintenanceTask
@@ -350,6 +401,8 @@ struct TaskEditorView: View {
             task.title = cleanTitle
             task.intervalKm = kmInterval
             task.intervalMonths = monthInterval
+            task.intervalEngineHours = hourInterval
+            task.lastEngineHours = lastHours
             task.lastMileage = mileage
             task.lastDate = lastDate
             task.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -360,6 +413,8 @@ struct TaskEditorView: View {
                 title: cleanTitle,
                 intervalKm: kmInterval,
                 intervalMonths: monthInterval,
+                intervalEngineHours: hourInterval,
+                lastEngineHours: lastHours,
                 lastMileage: mileage,
                 lastDate: lastDate,
                 notes: notes.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -367,7 +422,13 @@ struct TaskEditorView: View {
             modelContext.insert(newTask)
             savedTask = newTask
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            errorMessage = "Не удалось сохранить регламент: \(error.localizedDescription)"
+            return
+        }
         NotificationManager.shared.refresh(
             vehicle: vehicle,
             tasks: [savedTask],
@@ -388,6 +449,10 @@ private struct CompleteTaskView: View {
     @AppStorage("warningDays") private var warningDays = 7
     @AppStorage("mileageReminderDays") private var mileageReminderDays = 30
     @State private var mileage: String
+    @State private var engineHours: String
+    @State private var parts = ""
+    @State private var receiptItem: PhotosPickerItem?
+    @State private var receiptImageData: Data?
     @State private var date = Date.now
     @State private var cost = ""
     @State private var currency = "EUR"
@@ -398,6 +463,7 @@ private struct CompleteTaskView: View {
         self.vehicle = vehicle
         self.task = task
         _mileage = State(initialValue: String(vehicle.currentMileage))
+        _engineHours = State(initialValue: String(vehicle.engineHours))
     }
 
     var body: some View {
@@ -406,6 +472,8 @@ private struct CompleteTaskView: View {
                 Section(task.title) {
                     TextField("Пробег", text: $mileage)
                         .keyboardType(.numberPad)
+                    TextField("Моточасы", text: $engineHours)
+                        .keyboardType(.decimalPad)
                     DatePicker("Дата", selection: $date, displayedComponents: .date)
                 }
 
@@ -417,6 +485,17 @@ private struct CompleteTaskView: View {
                         Text("UAH").tag("UAH")
                         Text("USD").tag("USD")
                         Text("RUB").tag("RUB")
+                    }
+                }
+
+                Section("Запчасти и чек") {
+                    TextField("Артикулы, марки, номера деталей", text: $parts, axis: .vertical)
+                        .lineLimit(2...5)
+                    PhotosPicker(selection: $receiptItem, matching: .images) {
+                        Label(receiptImageData == nil ? "Добавить фото чека" : "Заменить фото чека", systemImage: "doc.text.viewfinder")
+                    }
+                    if receiptImageData != nil {
+                        Button("Удалить фото", role: .destructive) { receiptImageData = nil }
                     }
                 }
 
@@ -432,6 +511,12 @@ private struct CompleteTaskView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
+            .onChange(of: receiptItem) { _, item in
+                Task {
+                    do { receiptImageData = try await item?.loadTransferable(type: Data.self) }
+                    catch { errorMessage = error.localizedDescription }
+                }
+            }
             .navigationTitle("Работа выполнена")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -456,19 +541,29 @@ private struct CompleteTaskView: View {
         }
 
         let normalizedCost = cost.replacingOccurrences(of: ",", with: ".")
+        let costValue = Double(normalizedCost) ?? 0
+        let hoursValue = Double(engineHours.replacingOccurrences(of: ",", with: ".")) ?? -1
+        guard costValue.isFinite, costValue >= 0, hoursValue.isFinite, hoursValue >= task.lastEngineHours, hoursValue >= vehicle.engineHours else {
+            errorMessage = "Проверь стоимость и моточасы."
+            return
+        }
         let record = ServiceRecord(
             vehicleID: vehicle.id,
             taskID: task.id,
             title: task.title,
             mileage: mileageValue,
             date: date,
-            cost: Double(normalizedCost) ?? 0,
+            cost: costValue,
             currency: currency,
-            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+            parts: parts.trimmingCharacters(in: .whitespacesAndNewlines),
+            receiptImageData: receiptImageData
         )
         modelContext.insert(record)
         task.lastMileage = mileageValue
         task.lastDate = date
+        task.lastEngineHours = hoursValue
+        vehicle.engineHours = hoursValue
 
         let updatedVehicleMileage = mileageValue > vehicle.currentMileage
         if updatedVehicleMileage {
@@ -476,7 +571,13 @@ private struct CompleteTaskView: View {
             modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: mileageValue, date: date))
         }
 
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            errorMessage = "Не удалось сохранить работу: \(error.localizedDescription)"
+            return
+        }
         NotificationManager.shared.refresh(
             vehicle: vehicle,
             tasks: [task],
