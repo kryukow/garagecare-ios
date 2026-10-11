@@ -24,7 +24,6 @@ enum BackupValidator {
             throw BackupValidationError.invalid("В копии найдены повторяющиеся идентификаторы.")
         }
         let vehicleIDs = Set(backup.vehicles.map(\.id))
-        let taskIDs = Set(backup.tasks.map(\.id))
         guard backup.vehicles.allSatisfy({ $0.currentMileage >= 0 && $0.year >= 1886 &&
             $0.year <= Calendar.current.component(.year, from: .now) + 2 &&
             ($0.engineHours ?? 0).isFinite && ($0.engineHours ?? 0) >= 0 &&
@@ -58,6 +57,5 @@ enum BackupValidator {
             throw BackupValidationError.invalid("Ошибка в истории пробега или заправок.")
         }
         // Empty copies are valid; they may be intentionally created from a new installation.
-        _ = taskIDs
     }
 }
