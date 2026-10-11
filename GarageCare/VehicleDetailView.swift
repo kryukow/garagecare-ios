@@ -117,6 +117,7 @@ struct VehicleDetailView: View {
                                         TaskListRow(
                                             task: task,
                                             currentMileage: vehicle.currentMileage,
+                                            currentEngineHours: vehicle.engineHours,
                                             warningKm: warningKm,
                                             warningDays: warningDays
                                         )
@@ -139,6 +140,7 @@ struct VehicleDetailView: View {
                                         TaskCard(
                                             task: task,
                                             currentMileage: vehicle.currentMileage,
+                                            currentEngineHours: vehicle.engineHours,
                                             warningKm: warningKm,
                                             warningDays: warningDays
                                         )
@@ -338,6 +340,7 @@ private struct VehicleHero: View {
 private struct TaskCard: View {
     let task: MaintenanceTask
     let currentMileage: Int
+    let currentEngineHours: Double
     let warningKm: Int
     let warningDays: Int
 
@@ -345,19 +348,21 @@ private struct TaskCard: View {
         task.state(
             currentMileage: currentMileage,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningDays: warningDays,
+            currentEngineHours: currentEngineHours
         )
     }
 
     private var progress: Double {
-        task.displayProgress(currentMileage: currentMileage)
+        task.displayProgress(currentMileage: currentMileage, currentEngineHours: currentEngineHours)
     }
 
     private var statusColor: Color {
         task.displayColor(
             currentMileage: currentMileage,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningDays: warningDays,
+            currentEngineHours: currentEngineHours
         )
     }
 
@@ -409,7 +414,10 @@ private struct TaskCard: View {
                 if let days = task.daysRemaining() {
                     Text(days >= 0 ? "\(days) дн. осталось" : "+\(abs(days)) дн. просрочено")
                 }
-                if task.intervalKm == 0 && task.intervalMonths == 0 {
+                if let hours = task.engineHoursRemaining(currentEngineHours: currentEngineHours) {
+                    Text(String(format: hours >= 0 ? "%.1f мч осталось" : "+%.1f мч просрочено", abs(hours)))
+                }
+                if task.intervalKm == 0 && task.intervalMonths == 0 && task.intervalEngineHours == 0 {
                     Text("Интервал не задан")
                 }
             }
@@ -439,6 +447,7 @@ private struct TaskCard: View {
 private struct TaskListRow: View {
     let task: MaintenanceTask
     let currentMileage: Int
+    let currentEngineHours: Double
     let warningKm: Int
     let warningDays: Int
 
@@ -446,19 +455,21 @@ private struct TaskListRow: View {
         task.state(
             currentMileage: currentMileage,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningDays: warningDays,
+            currentEngineHours: currentEngineHours
         )
     }
 
     private var progress: Double {
-        task.displayProgress(currentMileage: currentMileage)
+        task.displayProgress(currentMileage: currentMileage, currentEngineHours: currentEngineHours)
     }
 
     private var color: Color {
         task.displayColor(
             currentMileage: currentMileage,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningDays: warningDays,
+            currentEngineHours: currentEngineHours
         )
     }
 
@@ -496,6 +507,9 @@ private struct TaskListRow: View {
                         )
                     }
 
+                    if let hours = task.engineHoursRemaining(currentEngineHours: currentEngineHours) {
+                        Label(String(format: hours >= 0 ? "%.1f мч" : "−%.1f мч", abs(hours)), systemImage: "gauge.with.dots.needle.50percent")
+                    }
                     if state == .notConfigured {
                         Label("Интервал не задан", systemImage: "slider.horizontal.3")
                     }
@@ -535,6 +549,7 @@ private struct UpdateMileageView: View {
     @AppStorage("warningDays") private var warningDays = 7
     @AppStorage("mileageReminderDays") private var mileageReminderDays = 30
     @State private var mileage = ""
+    @State private var engineHours = ""
     @State private var date = Date.now
     @State private var errorMessage: String?
 
@@ -544,6 +559,8 @@ private struct UpdateMileageView: View {
                 Section("Новый пробег") {
                     TextField("Километры", text: $mileage)
                         .keyboardType(.numberPad)
+                    TextField("Моточасы двигателя", text: $engineHours)
+                        .keyboardType(.decimalPad)
                     DatePicker("Дата", selection: $date, displayedComponents: .date)
                 }
 
@@ -568,6 +585,7 @@ private struct UpdateMileageView: View {
             }
             .onAppear {
                 mileage = String(vehicle.currentMileage)
+                engineHours = String(vehicle.engineHours)
             }
         }
     }
@@ -582,9 +600,20 @@ private struct UpdateMileageView: View {
             return
         }
 
+        let hours = Double(engineHours.replacingOccurrences(of: ",", with: ".")) ?? -1
+        guard hours.isFinite, hours >= vehicle.engineHours else {
+            errorMessage = "Моточасы не могут уменьшаться."
+            return
+        }
         vehicle.currentMileage = value
+        vehicle.engineHours = hours
         modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: value, date: date))
-        try? modelContext.save()
+        do { try modelContext.save() }
+        catch {
+            modelContext.rollback()
+            errorMessage = "Ошибка сохранения: \(error.localizedDescription)"
+            return
+        }
         NotificationManager.shared.refresh(
             vehicle: vehicle,
             tasks: tasks,
@@ -606,6 +635,7 @@ private struct EditVehicleView: View {
     @Bindable var vehicle: Vehicle
     @State private var photoItem: PhotosPickerItem?
     @State private var expectedConsumption = ""
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -643,6 +673,7 @@ private struct EditVehicleView: View {
                     TextField("Текст", text: $vehicle.notes, axis: .vertical)
                         .lineLimit(2...6)
                 }
+                if let saveError { Text(saveError).foregroundStyle(.red) }
             }
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
@@ -653,8 +684,8 @@ private struct EditVehicleView: View {
                     Button("Готово") {
                         let normalized = expectedConsumption.replacingOccurrences(of: ",", with: ".")
                         vehicle.expectedFuelConsumption = Double(normalized) ?? 0
-                        try? modelContext.save()
-                        dismiss()
+                        do { try modelContext.save(); dismiss() }
+                        catch { saveError = error.localizedDescription }
                     }
                 }
             }
