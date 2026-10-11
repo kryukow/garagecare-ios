@@ -187,6 +187,6 @@ final class GarageCareLogicTests: XCTestCase {
         XCTAssertTrue(csv.contains("ТО;Example Car"))
         XCTAssertTrue(csv.contains("Заправка;Example Car"))
         XCTAssertTrue(csv.contains("\"Масло; фильтр\""))
-        XCTAssertTrue(csv.contains("\"Ravenol \"\"VST\"\"\""))
+        XCTAssertTrue(csv.contains("\"Synthetic oil \"\"5W-40\"\"\""))
     }
 }
