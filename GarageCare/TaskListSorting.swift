@@ -66,16 +66,19 @@ enum TaskListSorter {
         let b = priority(rhs.state)
         if a != b { return a < b }
 
-        // Compare exact remaining days only when BOTH tasks have calendar intervals.
-        if let l = lhs.days, let r = rhs.days, l != r { return l < r }
-
         // Kilometer and engine-hour intervals cannot be converted to calendar dates
-        // without a reliable driving/engine-hour rate. Compare fraction used instead.
-        if abs(lhs.progress - rhs.progress) > 0.000001 {
-            return lhs.progress > rhs.progress
-        }
-        if let l = lhs.kilometers, let r = rhs.kilometers, l != r { return l < r }
-        if let l = lhs.hours, let r = rhs.hours, abs(l - r) > 0.000001 { return l < r }
+        // without reliable rates. Rank by the fraction of their interval already used.
+        // Total-order keys avoid an inconsistent comparison with mixed units.
+        if lhs.progress != rhs.progress { return lhs.progress > rhs.progress }
+        let lhsDays = lhs.days ?? Int.max
+        let rhsDays = rhs.days ?? Int.max
+        if lhsDays != rhsDays { return lhsDays < rhsDays }
+        let lhsKm = lhs.kilometers ?? Int.max
+        let rhsKm = rhs.kilometers ?? Int.max
+        if lhsKm != rhsKm { return lhsKm < rhsKm }
+        let lhsHours = lhs.hours ?? Double.greatestFiniteMagnitude
+        let rhsHours = rhs.hours ?? Double.greatestFiniteMagnitude
+        if lhsHours != rhsHours { return lhsHours < rhsHours }
         return earlierCreated(lhs.task, rhs.task)
     }
 
