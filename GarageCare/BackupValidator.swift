@@ -59,3 +59,26 @@ enum BackupValidator {
         // Empty copies are valid; they may be intentionally created from a new installation.
     }
 }
+
+
+/// Из Google Drive/iCloud можно получить файлы с различными UTI.
+/// Проверяем расширение в дополнение к системному фильтру документа.
+enum BackupImportFormat {
+    static func validate(filename: String) throws {
+        let ext = (filename as NSString).pathExtension.lowercased()
+        switch ext {
+        case "json":
+            return
+        case "csv":
+            throw BackupValidationError.invalid(
+                "CSV — это таблица истории для Excel или Google Sheets, а не резервная копия. " +
+                "Вся история уже входит в GarageCare-backup.json. Для восстановления выбери JSON-файл."
+            )
+        default:
+            throw BackupValidationError.invalid(
+                "Для восстановления нужна резервная копия «Мой гараж» в формате JSON (.json). " +
+                "Создай её в разделе «Резервная копия JSON»."
+            )
+        }
+    }
+}
