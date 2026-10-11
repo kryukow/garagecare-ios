@@ -264,6 +264,7 @@ final class FuelEntry {
 
 struct FuelConsumptionPoint: Identifiable {
     let id: UUID
+    let fuelType: String
     let date: Date
     let mileage: Int
     let distance: Int
@@ -307,6 +308,7 @@ enum FuelStatisticsCalculator {
                     result.append(
                         FuelConsumptionPoint(
                             id: entry.id,
+                            fuelType: entry.fuelType,
                             date: entry.date,
                             mileage: entry.mileage,
                             distance: distance,
