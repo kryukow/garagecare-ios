@@ -1,0 +1,86 @@
+name: Проверка сборки
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 20
+
+    steps:
+      - name: Получить исходники
+        uses: actions/checkout@v4
+
+      - name: Проверить Xcode 27
+        shell: bash
+        run: |
+          xcodebuild -version
+          SDK_VERSION="$(xcrun --sdk iphoneos --show-sdk-version)"
+          echo "iOS SDK: $SDK_VERSION"
+          XCODE_MAJOR="$(xcodebuild -version | awk '/Xcode/{print $2}' | cut -d. -f1)"
+          if [[ "$XCODE_MAJOR" != "27" ]]; then
+            echo "Ожидался Xcode 27, получен Xcode $XCODE_MAJOR"
+            exit 1
+          fi
+
+      - name: Установить XcodeGen
+        run: brew install xcodegen
+
+      - name: Создать Xcode-проект
+        run: xcodegen generate
+
+      - name: Проверить Swift-сборку
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project GarageCare.xcodeproj \
+            -scheme GarageCare \
+            -configuration Debug \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Запустить unit-тесты
+        shell: bash
+        run: |
+          set -o pipefail
+
+          SIMULATOR_UDID="$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          for runtime_devices in data.get("devices", {}).values():
+              for device in runtime_devices:
+                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+                      print(device["udid"])
+                      raise SystemExit(0)
+          raise SystemExit("Доступный iPhone Simulator не найден")
+          ')"
+
+          echo "Simulator: $SIMULATOR_UDID"
+          xcrun simctl boot "$SIMULATOR_UDID" 2>/dev/null || true
+
+          xcodebuild test \
+            -project GarageCare.xcodeproj \
+            -scheme GarageCare \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" \
+            -destination-timeout 120 \
+            -only-testing:GarageCareTests \
+            -parallel-testing-enabled NO \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 30 \
+            -maximum-test-execution-time-allowance 60 \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
