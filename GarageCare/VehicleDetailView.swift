@@ -10,6 +10,7 @@ struct VehicleDetailView: View {
     @AppStorage("warningKm") private var warningKm = 1_000
     @AppStorage("warningDays") private var warningDays = 7
     @AppStorage("taskLayoutMode") private var taskLayoutMode = "grid"
+    @AppStorage("taskListSortMode") private var taskListSortMode = TaskListSortMode.urgency.rawValue
 
     private enum ActiveModal: String, Identifiable {
         case mileage
@@ -28,6 +29,17 @@ struct VehicleDetailView: View {
         _tasks = Query(
             filter: #Predicate<MaintenanceTask> { $0.vehicleID == vehicleID },
             sort: [SortDescriptor(\MaintenanceTask.createdAt)]
+        )
+    }
+
+    private var sortedTasks: [MaintenanceTask] {
+        TaskListSorter.sorted(
+            tasks,
+            mode: TaskListSortMode(rawValue: taskListSortMode) ?? .urgency,
+            mileage: vehicle.currentMileage,
+            engineHours: vehicle.engineHours,
+            warningKm: warningKm,
+            warningDays: warningDays
         )
     }
 
@@ -56,6 +68,38 @@ struct VehicleDetailView: View {
                             Spacer()
 
                             HStack(spacing: 8) {
+                                if taskLayoutMode == "list" {
+                                    Menu {
+                                        ForEach(TaskListSortMode.allCases) { mode in
+                                            Button {
+                                                withAnimation(.easeInOut(duration: 0.18)) {
+                                                    taskListSortMode = mode.rawValue
+                                                }
+                                            } label: {
+                                                if taskListSortMode == mode.rawValue {
+                                                    Label(mode.title, systemImage: "checkmark")
+                                                } else {
+                                                    Text(mode.title)
+                                                }
+                                            }
+                                        }
+                                    } label: {
+                                        Image(systemName: "arrow.up.arrow.down")
+                                            .font(.subheadline.bold())
+                                            .foregroundStyle(Color.garageGreen)
+                                            .frame(width: 42, height: 40)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                                                    .fill(Color.garageGreen.opacity(0.10))
+                                            )
+                                            .overlay {
+                                                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                                                    .stroke(Color.garageGreen.opacity(0.15), lineWidth: 1)
+                                            }
+                                    }
+                                    .accessibilityLabel("Сортировка работ: \(TaskListSortMode(rawValue: taskListSortMode)?.title ?? "Сначала ближайшие")")
+                                }
+
                                 Button {
                                     withAnimation(.easeInOut(duration: 0.18)) {
                                         taskLayoutMode = taskLayoutMode == "grid" ? "list" : "grid"
@@ -110,7 +154,7 @@ struct VehicleDetailView: View {
                             .garageCard(cornerRadius: 22)
                         } else if taskLayoutMode == "list" {
                             LazyVStack(spacing: 10) {
-                                ForEach(tasks) { task in
+                                ForEach(sortedTasks) { task in
                                     Button {
                                         selectedTask = task
                                     } label: {
