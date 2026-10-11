@@ -19,6 +19,7 @@ struct VehicleSnapshot: Codable {
     let year: Int
     let vin: String
     let currentMileage: Int
+    let engineHours: Double?
     let notes: String
     let expectedFuelConsumption: Double?
     let imageData: Data?
@@ -31,6 +32,7 @@ struct VehicleSnapshot: Codable {
         year = value.year
         vin = value.vin
         currentMileage = value.currentMileage
+        engineHours = value.engineHours
         notes = value.notes
         expectedFuelConsumption = value.expectedFuelConsumption
         imageData = value.imageData
@@ -44,6 +46,8 @@ struct TaskSnapshot: Codable {
     let title: String
     let intervalKm: Int
     let intervalMonths: Int
+    let intervalEngineHours: Double?
+    let lastEngineHours: Double?
     let lastMileage: Int
     let lastDate: Date
     let notes: String
@@ -55,6 +59,8 @@ struct TaskSnapshot: Codable {
         title = value.title
         intervalKm = value.intervalKm
         intervalMonths = value.intervalMonths
+        intervalEngineHours = value.intervalEngineHours
+        lastEngineHours = value.lastEngineHours
         lastMileage = value.lastMileage
         lastDate = value.lastDate
         notes = value.notes
@@ -72,6 +78,8 @@ struct RecordSnapshot: Codable {
     let cost: Double
     let currency: String
     let notes: String
+    let parts: String?
+    let receiptImageData: Data?
 
     init(_ value: ServiceRecord) {
         id = value.id
@@ -83,6 +91,8 @@ struct RecordSnapshot: Codable {
         cost = value.cost
         currency = value.currency
         notes = value.notes
+        parts = value.parts
+        receiptImageData = value.receiptImageData
     }
 }
 
@@ -110,6 +120,7 @@ struct FuelSnapshot: Codable {
     let amount: Double
     let currency: String
     let isFullTank: Bool
+    let fuelType: String?
     let notes: String
 
     init(_ value: FuelEntry) {
@@ -121,6 +132,7 @@ struct FuelSnapshot: Codable {
         amount = value.amount
         currency = value.currency
         isFullTank = value.isFullTank
+        fuelType = value.fuelType
         notes = value.notes
     }
 }
@@ -171,7 +183,7 @@ enum HistoryCSVExporter {
     ) -> String {
         let vehicleNames = Dictionary(uniqueKeysWithValues: vehicles.map { ($0.id, $0.displayName) })
         var rows = [
-            ["Тип", "Автомобиль", "Дата", "Пробег", "Описание", "Литры", "Сумма", "Валюта", "Заметка"]
+            ["Тип", "Автомобиль", "Дата", "Пробег", "Описание", "Литры", "Сумма", "Валюта", "Заметка", "Запчасти"]
         ]
 
         for record in records.sorted(by: { $0.date < $1.date }) {
@@ -184,7 +196,8 @@ enum HistoryCSVExporter {
                 "",
                 record.cost > 0 ? decimal(record.cost) : "",
                 record.cost > 0 ? record.currency : "",
-                record.notes
+                record.notes,
+                record.parts
             ])
         }
 
@@ -198,7 +211,8 @@ enum HistoryCSVExporter {
                 decimal(entry.liters),
                 entry.amount > 0 ? decimal(entry.amount) : "",
                 entry.amount > 0 ? entry.currency : "",
-                entry.notes
+                entry.notes,
+                ""
             ])
         }
 
