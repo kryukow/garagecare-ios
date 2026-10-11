@@ -35,6 +35,8 @@ struct SettingsView: View {
     @State private var notificationsAllowed = false
     @State private var exportDocument = BackupDocument()
     @State private var csvDocument = CSVDocument()
+    @State private var pdfDocument = PDFDocument()
+    @State private var showingPDFExporter = false
     @State private var showingExporter = false
     @State private var showingCSVExporter = false
     @State private var showingImporter = false
@@ -130,6 +132,15 @@ struct SettingsView: View {
                     Text("Системное окно «Файлы» позволит сохранить копию в iCloud Drive или локально. В копию входят автомобили, работы, пробег, заправки, расходы и фотографии.")
                 }
 
+                Section("Экспорт PDF") {
+                    Button {
+                        pdfDocument = PDFDocument(data: ServicePDFExporter.makePDF(vehicles: vehicles, records: records))
+                        showingPDFExporter = true
+                    } label: {
+                        Label("Сохранить историю с чеками в PDF", systemImage: "doc.richtext")
+                    }
+                }
+
                 Section("О приложении") {
                     LabeledContent("Название", value: "Мой гараж")
                     LabeledContent("Версия", value: appVersion)
@@ -162,6 +173,16 @@ struct SettingsView: View {
             ) { result in
                 if case .failure(let error) = result {
                     activeAlert = .message("Не удалось экспортировать CSV: \(error.localizedDescription)")
+                }
+            }
+            .fileExporter(
+                isPresented: $showingPDFExporter,
+                document: pdfDocument,
+                contentType: .pdf,
+                defaultFilename: "GarageCare-service-history.pdf"
+            ) { result in
+                if case .failure(let error) = result {
+                    activeAlert = .message("Не удалось экспортировать PDF: \(error.localizedDescription)")
                 }
             }
             .sheet(isPresented: $showingImporter) {
@@ -219,7 +240,7 @@ struct SettingsView: View {
 
     private func prepareExport() {
         let payload = BackupPayload(
-            version: 2,
+            version: 3,
             exportedAt: .now,
             vehicles: vehicles.map(VehicleSnapshot.init),
             tasks: tasks.map(TaskSnapshot.init),
@@ -258,11 +279,7 @@ struct SettingsView: View {
 
             let payload = try decoder.decode(BackupPayload.self, from: data)
 
-            guard (1...2).contains(payload.version) else {
-                activeAlert = .message("Эта версия резервной копии не поддерживается.")
-                return
-            }
-
+            try BackupValidator.validate(payload)
             importedPayload = payload
             activeAlert = .confirmImport
         } catch {
@@ -272,6 +289,14 @@ struct SettingsView: View {
 
     private func restoreImportedData() {
         guard let payload = importedPayload else { return }
+
+        do {
+            try BackupValidator.validate(payload)
+        } catch {
+            activeAlert = .message("Некорректная копия: \(error.localizedDescription)")
+            importedPayload = nil
+            return
+        }
 
         fuelEntries.forEach { modelContext.delete($0) }
         mileageEntries.forEach { modelContext.delete($0) }
@@ -288,6 +313,7 @@ struct SettingsView: View {
                     year: value.year,
                     vin: value.vin,
                     currentMileage: value.currentMileage,
+                    engineHours: value.engineHours ?? 0,
                     notes: value.notes,
                     expectedFuelConsumption: value.expectedFuelConsumption ?? 0,
                     imageData: value.imageData,
@@ -304,6 +330,8 @@ struct SettingsView: View {
                     title: value.title,
                     intervalKm: value.intervalKm,
                     intervalMonths: value.intervalMonths,
+                    intervalEngineHours: value.intervalEngineHours ?? 0,
+                    lastEngineHours: value.lastEngineHours ?? 0,
                     lastMileage: value.lastMileage,
                     lastDate: value.lastDate,
                     notes: value.notes,
@@ -323,7 +351,9 @@ struct SettingsView: View {
                     date: value.date,
                     cost: value.cost,
                     currency: value.currency,
-                    notes: value.notes
+                    notes: value.notes,
+                    parts: value.parts ?? "",
+                    receiptImageData: value.receiptImageData
                 )
             )
         }
@@ -350,6 +380,7 @@ struct SettingsView: View {
                     amount: value.amount,
                     currency: value.currency,
                     isFullTank: value.isFullTank,
+                    fuelType: value.fuelType ?? "Бензин",
                     notes: value.notes
                 )
             )
@@ -358,8 +389,10 @@ struct SettingsView: View {
         do {
             try modelContext.save()
             importedPayload = nil
+            refreshAllNotifications()
             activeAlert = .message("Данные восстановлены.")
         } catch {
+            modelContext.rollback()
             activeAlert = .message("Не удалось восстановить данные: \(error.localizedDescription)")
         }
     }
