@@ -19,6 +19,7 @@ struct VehicleSnapshot: Codable {
     let year: Int
     let vin: String
     let currentMileage: Int
+    let currentEngineHours: Double?
     let notes: String
     let expectedFuelConsumption: Double?
     let imageData: Data?
@@ -31,6 +32,7 @@ struct VehicleSnapshot: Codable {
         year = value.year
         vin = value.vin
         currentMileage = value.currentMileage
+        currentEngineHours = value.currentEngineHours
         notes = value.notes
         expectedFuelConsumption = value.expectedFuelConsumption
         imageData = value.imageData
@@ -44,7 +46,9 @@ struct TaskSnapshot: Codable {
     let title: String
     let intervalKm: Int
     let intervalMonths: Int
+    let intervalEngineHours: Double?
     let lastMileage: Int
+    let lastEngineHours: Double?
     let lastDate: Date
     let notes: String
     let createdAt: Date
@@ -55,7 +59,9 @@ struct TaskSnapshot: Codable {
         title = value.title
         intervalKm = value.intervalKm
         intervalMonths = value.intervalMonths
+        intervalEngineHours = value.intervalEngineHours
         lastMileage = value.lastMileage
+        lastEngineHours = value.lastEngineHours
         lastDate = value.lastDate
         notes = value.notes
         createdAt = value.createdAt
@@ -68,6 +74,7 @@ struct RecordSnapshot: Codable {
     let taskID: UUID?
     let title: String
     let mileage: Int
+    let engineHours: Double?
     let date: Date
     let cost: Double
     let currency: String
@@ -79,6 +86,7 @@ struct RecordSnapshot: Codable {
         taskID = value.taskID
         title = value.title
         mileage = value.mileage
+        engineHours = value.engineHours
         date = value.date
         cost = value.cost
         currency = value.currency
@@ -90,12 +98,14 @@ struct MileageSnapshot: Codable {
     let id: UUID
     let vehicleID: UUID
     let mileage: Int
+    let engineHours: Double?
     let date: Date
 
     init(_ value: MileageEntry) {
         id = value.id
         vehicleID = value.vehicleID
         mileage = value.mileage
+        engineHours = value.engineHours
         date = value.date
     }
 }
@@ -171,7 +181,7 @@ enum HistoryCSVExporter {
     ) -> String {
         let vehicleNames = Dictionary(uniqueKeysWithValues: vehicles.map { ($0.id, $0.displayName) })
         var rows = [
-            ["Тип", "Автомобиль", "Дата", "Пробег", "Описание", "Литры", "Сумма", "Валюта", "Заметка"]
+            ["Тип", "Автомобиль", "Дата", "Пробег", "Моточасы", "Описание", "Литры", "Сумма", "Валюта", "Заметка"]
         ]
 
         for record in records.sorted(by: { $0.date < $1.date }) {
@@ -180,6 +190,7 @@ enum HistoryCSVExporter {
                 vehicleNames[record.vehicleID] ?? "Автомобиль",
                 isoDate(record.date),
                 String(record.mileage),
+                record.engineHours > 0 ? decimal(record.engineHours) : "",
                 record.title,
                 "",
                 record.cost > 0 ? decimal(record.cost) : "",
@@ -194,6 +205,7 @@ enum HistoryCSVExporter {
                 vehicleNames[entry.vehicleID] ?? "Автомобиль",
                 isoDate(entry.date),
                 String(entry.mileage),
+                "",
                 entry.isFullTank ? "До полного" : "Долив",
                 decimal(entry.liters),
                 entry.amount > 0 ? decimal(entry.amount) : "",
