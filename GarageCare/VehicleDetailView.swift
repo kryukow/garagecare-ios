@@ -265,39 +265,60 @@ private struct VehicleHero: View {
     var body: some View {
         VStack(spacing: 0) {
             Button(action: onPhotoTap) {
-                ZStack(alignment: .bottomLeading) {
+                ZStack(alignment: .topLeading) {
                     vehicleImage
-                        .frame(height: 218)
                         .frame(maxWidth: .infinity)
+                        .frame(height: 218)
                         .clipped()
 
+                    // Text is readable at the top, while the bottom blends
+                    // directly into the mileage area without a dividing line.
                     LinearGradient(
-                        colors: [.clear, .black.opacity(0.87)],
-                        startPoint: .center,
+                        stops: [
+                            .init(color: .black.opacity(0.64), location: 0),
+                            .init(color: .black.opacity(0.18), location: 0.40),
+                            .init(color: .black.opacity(0.03), location: 0.62),
+                            .init(color: .black.opacity(0.93), location: 1)
+                        ],
+                        startPoint: .top,
                         endPoint: .bottom
                     )
 
-                    HStack(alignment: .bottom) {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(vehicle.displayName.isEmpty ? "Автомобиль" : vehicle.displayName)
-                                .font(.title2.bold())
-                                .foregroundStyle(.white)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(vehicle.displayName.isEmpty ? "Автомобиль" : vehicle.displayName)
+                            .font(.title2.bold())
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
 
-                            HStack(spacing: 9) {
-                                if vehicle.year > 0 {
-                                    Text(String(vehicle.year))
-                                }
-                                if !vehicle.vin.isEmpty {
-                                    Text("VIN • \\(String(vehicle.vin.suffix(6)))")
-                                }
+                        HStack(spacing: 9) {
+                            if vehicle.year > 0 {
+                                Text(String(vehicle.year))
                             }
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.white.opacity(0.72))
+                            if !vehicle.vin.isEmpty {
+                                Text("VIN • \(String(vehicle.vin.suffix(6)))")
+                            }
                         }
-                        Spacer()
-                        GarageStatusPill(title: "АКТИВЕН", color: .garageGreen, systemImage: "checkmark")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.82))
+                        .lineLimit(1)
                     }
-                    .padding(16)
+                    .padding(.top, 16)
+                    .padding(.horizontal, 16)
+
+                    VStack {
+                        Spacer(minLength: 0)
+                        HStack {
+                            Spacer()
+                            GarageStatusPill(
+                                title: "АКТИВЕН",
+                                color: .garageGreen,
+                                systemImage: "checkmark"
+                            )
+                        }
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 16)
+                    }
                 }
                 .frame(height: 218)
                 .contentShape(Rectangle())
@@ -336,11 +357,11 @@ private struct VehicleHero: View {
                 .padding(.top, 5)
                 .padding(.bottom, 16)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.black.opacity(0.87))
+                .background(Color.black.opacity(0.93))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Текущий пробег \\(Formatters.mileage(vehicle.currentMileage)). Обновить")
+            .accessibilityLabel("Текущий пробег \(Formatters.mileage(vehicle.currentMileage)). Обновить")
         }
         .background(Color.black)
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
