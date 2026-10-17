@@ -368,14 +368,6 @@ struct TaskEditorView: View {
             Form {
                 Section("Работа") {
                     TextField("Название", text: $title)
-                    Button("HU / TÜV — 24 месяца") {
-                        title = "HU / TÜV"
-                        useCalendar = true
-                        useEngineHours = false
-                        intervalMonths = "24"
-                        intervalKm = ""
-                        intervalEngineHours = ""
-                    }
                 }
 
                 Section {
