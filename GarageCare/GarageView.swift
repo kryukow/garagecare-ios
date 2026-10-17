@@ -8,14 +8,14 @@ struct GarageView: View {
     @Query(sort: \MaintenanceTask.createdAt) private var tasks: [MaintenanceTask]
 
     @AppStorage("warningKm") private var warningKm = 1_000
-    @AppStorage("warningDays") private var warningDays = 7
+    @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
 
     @State private var showingAddVehicle = false
     @State private var vehicleToDelete: Vehicle?
 
     private var upcomingWorks: [UpcomingWork] {
         tasks.compactMap { task in
-            guard task.intervalKm > 0 || task.intervalMonths > 0,
+            guard task.intervalKm > 0 || task.intervalEngineHours > 0,
                   let vehicle = vehicles.first(where: { $0.id == task.vehicleID }) else {
                 return nil
             }
@@ -24,21 +24,28 @@ struct GarageView: View {
         .sorted { lhs, rhs in
             let lhsState = lhs.task.state(
                 currentMileage: lhs.vehicle.currentMileage,
+                currentEngineHours: lhs.vehicle.currentEngineHours,
                 warningKm: warningKm,
-                warningDays: warningDays
+                warningEngineHours: warningEngineHours
             )
             let rhsState = rhs.task.state(
                 currentMileage: rhs.vehicle.currentMileage,
+                currentEngineHours: rhs.vehicle.currentEngineHours,
                 warningKm: warningKm,
-                warningDays: warningDays
+                warningEngineHours: warningEngineHours
             )
 
             if lhsState.sortPriority != rhsState.sortPriority {
                 return lhsState.sortPriority < rhsState.sortPriority
             }
 
-            return lhs.task.displayProgress(currentMileage: lhs.vehicle.currentMileage)
-                > rhs.task.displayProgress(currentMileage: rhs.vehicle.currentMileage)
+            return lhs.task.displayProgress(
+                currentMileage: lhs.vehicle.currentMileage,
+                currentEngineHours: lhs.vehicle.currentEngineHours
+            ) > rhs.task.displayProgress(
+                currentMileage: rhs.vehicle.currentMileage,
+                currentEngineHours: rhs.vehicle.currentEngineHours
+            )
         }
         .prefix(4)
         .map { $0 }
@@ -137,7 +144,7 @@ struct GarageView: View {
                                         UpcomingWorkRow(
                                             item: item,
                                             warningKm: warningKm,
-                                            warningDays: warningDays
+                                            warningEngineHours: warningEngineHours
                                         )
                                     }
                                     .buttonStyle(.plain)
@@ -294,21 +301,23 @@ private struct UpcomingWork: Identifiable {
 private struct UpcomingWorkRow: View {
     let item: UpcomingWork
     let warningKm: Int
-    let warningDays: Int
+    let warningEngineHours: Double
 
     private var state: DueState {
         item.task.state(
             currentMileage: item.vehicle.currentMileage,
+            currentEngineHours: item.vehicle.currentEngineHours,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningEngineHours: warningEngineHours
         )
     }
 
     private var color: Color {
         item.task.displayColor(
             currentMileage: item.vehicle.currentMileage,
+            currentEngineHours: item.vehicle.currentEngineHours,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningEngineHours: warningEngineHours
         )
     }
 
@@ -338,10 +347,10 @@ private struct UpcomingWorkRow: View {
                         )
                     }
 
-                    if let days = item.task.daysRemaining() {
+                    if let hours = item.task.engineHoursRemaining(currentEngineHours: item.vehicle.currentEngineHours) {
                         Label(
-                            days >= 0 ? "\(days) дн." : "−\(abs(days)) дн.",
-                            systemImage: "calendar"
+                            hours >= 0 ? Formatters.engineHours(hours) : "−\(Formatters.engineHours(abs(hours)))",
+                            systemImage: "gauge.with.dots.needle.50percent"
                         )
                     }
                 }
@@ -380,6 +389,7 @@ private struct AddVehicleView: View {
     @State private var year = ""
     @State private var vin = ""
     @State private var mileage = ""
+    @State private var engineHours = ""
     @State private var notes = ""
     @State private var expectedConsumption = ""
     @State private var imageData: Data?
@@ -405,6 +415,8 @@ private struct AddVehicleView: View {
                         .autocorrectionDisabled()
                     TextField("Текущий пробег, км", text: $mileage)
                         .keyboardType(.numberPad)
+                    TextField("Текущие моточасы (необязательно)", text: $engineHours)
+                        .keyboardType(.decimalPad)
                 }
 
                 Section {
@@ -465,18 +477,27 @@ private struct AddVehicleView: View {
     private func save() {
         guard let mileageValue = Int(mileage.filter(\.isNumber)) else { return }
         let normalizedExpected = expectedConsumption.replacingOccurrences(of: ",", with: ".")
+        let normalizedHours = engineHours.replacingOccurrences(of: ",", with: ".")
+        let engineHoursValue = Double(normalizedHours) ?? 0
         let vehicle = Vehicle(
             make: make.trimmingCharacters(in: .whitespacesAndNewlines),
             model: model.trimmingCharacters(in: .whitespacesAndNewlines),
             year: Int(year.filter(\.isNumber)) ?? Calendar.current.component(.year, from: .now),
             vin: vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
             currentMileage: mileageValue,
+            currentEngineHours: engineHoursValue,
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             expectedFuelConsumption: Double(normalizedExpected) ?? 0,
             imageData: imageData
         )
         modelContext.insert(vehicle)
-        modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: mileageValue))
+        modelContext.insert(
+            MileageEntry(
+                vehicleID: vehicle.id,
+                mileage: mileageValue,
+                engineHours: engineHoursValue
+            )
+        )
 
         if addTemplates {
             [
@@ -490,7 +511,8 @@ private struct AddVehicleView: View {
                 modelContext.insert(MaintenanceTask(
                     vehicleID: vehicle.id,
                     title: title,
-                    lastMileage: mileageValue
+                    lastMileage: mileageValue,
+                    lastEngineHours: engineHoursValue
                 ))
             }
         }
