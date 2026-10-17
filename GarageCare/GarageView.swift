@@ -455,6 +455,7 @@ private struct AddVehicleView: View {
             }
             .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
+            .garageKeyboardDismissal()
             .background(Color.garageBackground)
             .navigationTitle("Новый автомобиль")
             .navigationBarTitleDisplayMode(.inline)
