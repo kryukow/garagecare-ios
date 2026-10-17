@@ -47,7 +47,9 @@ enum ServicePDFExporter {
                 line("Стоимость: " + String(format: "%.2f", record.cost) + " " + record.currency)
                 if !record.parts.isEmpty { line("Запчасти: " + record.parts) }
                 if !record.notes.isEmpty { line("Заметка: " + record.notes) }
-                for data in [record.imageData, record.receiptImageData].compactMap({ $0 }) {
+                let photos = GaragePhotoArchive.images(primary: record.imageData, additional: record.extraPhotoData)
+                let receipts = GaragePhotoArchive.images(primary: record.receiptImageData, additional: record.extraReceiptData)
+                for data in photos + receipts {
                    if
                    let image = UIImage(data: data), image.size.width > 0, image.size.height > 0 {
                     let maxW: CGFloat = 260

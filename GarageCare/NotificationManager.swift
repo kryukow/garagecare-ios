@@ -86,7 +86,9 @@ final class NotificationManager {
         let center = UNUserNotificationCenter.current()
         let identifiers =
             tasks.flatMap { ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)", "hours-\($0.id.uuidString)"] } +
-            ["mileage-entry-\(vehicle.id.uuidString)"]
+            ["mileage-entry-\(vehicle.id.uuidString)",
+             "hu-\(vehicle.id.uuidString)",
+             "insurance-\(vehicle.id.uuidString)"]
 
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
         center.removeDeliveredNotifications(withIdentifiers: identifiers)
@@ -155,6 +157,52 @@ final class NotificationManager {
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
         )
         UNUserNotificationCenter.current().add(request)
+    }
+
+    /// Date-based notices are separate from engine-hour and odometer service
+    /// intervals. One-time notifications never imply the insurance was paid.
+    func refreshVehicleDeadlines(vehicle: Vehicle) {
+        let center = UNUserNotificationCenter.current()
+        let ids = ["hu-\(vehicle.id.uuidString)", "insurance-\(vehicle.id.uuidString)"]
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+        if let huDate = vehicle.huDueDate {
+            scheduleDeadline(
+                id: ids[0], title: "HU / TÜV: \(vehicle.displayName)",
+                body: "Проверь срок техосмотра: до \(Formatters.russianDate(huDate)).",
+                dueDate: huDate, advanceDays: 30
+            )
+        }
+        if let debit = vehicle.insuranceNextDebitDate {
+            scheduleDeadline(
+                id: ids[1], title: "Страховка: \(vehicle.displayName)",
+                body: "Ожидаемое списание страховки \(Formatters.russianDate(debit)). Проверь платёж в банке.",
+                dueDate: debit, advanceDays: 7
+            )
+        }
+    }
+
+    private func scheduleDeadline(id: String, title: String, body: String, dueDate: Date, advanceDays: Int) {
+        // Do not schedule notifications in the past or spam after expiry.
+        guard Calendar.current.startOfDay(for: dueDate) >= Calendar.current.startOfDay(for: .now) else {
+            return
+        }
+        let target = Calendar.current.date(byAdding: .day, value: -advanceDays, to: dueDate) ?? dueDate
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let trigger: UNNotificationTrigger
+        if target <= .now {
+            trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3, repeats: false)
+        } else {
+            var components = Calendar.current.dateComponents([.year, .month, .day], from: target)
+            components.hour = 9
+            components.minute = 0
+            trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        }
+        UNUserNotificationCenter.current().add(
+            UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+        )
     }
 
 }

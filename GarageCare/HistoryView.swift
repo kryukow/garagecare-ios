@@ -51,11 +51,11 @@ struct HistoryView: View {
                                 .garageCard(cornerRadius: 20)
                             }
                             ForEach(records) { record in
-                                Button { recordToEdit = record } label: {
-                                    HistoryCard(record: record,
-                                        vehicle: vehicles.first(where: { $0.id == record.vehicleID }))
-                                }
-                                .buttonStyle(.plain)
+                                HistoryCard(
+                                    record: record,
+                                    vehicle: vehicles.first(where: { $0.id == record.vehicleID }),
+                                    edit: { recordToEdit = record }
+                                )
                             }
                         }
                         .padding(.horizontal, 16)
@@ -76,6 +76,7 @@ struct HistoryView: View {
 private struct HistoryCard: View {
     let record: ServiceRecord
     let vehicle: Vehicle?
+    let edit: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -93,7 +94,13 @@ private struct HistoryCard: View {
                     Text(record.cost, format: .currency(code: record.currency))
                         .font(.subheadline.bold()).foregroundStyle(.primary)
                 }
-                Image(systemName: "pencil").font(.caption).foregroundStyle(.secondary)
+                Button(action: edit) {
+                    Image(systemName: "pencil")
+                        .font(.body)
+                        .frame(width: 44, height: 44)
+                }
+                .foregroundStyle(Color.garageGreen)
+                .accessibilityLabel("Изменить запись")
             }
             Divider()
             HStack(spacing: 14) {
@@ -111,16 +118,8 @@ private struct HistoryCard: View {
             if !record.notes.isEmpty {
                 Text(record.notes).font(.subheadline).foregroundStyle(.secondary)
             }
-            if let data = record.imageData, let image = UIImage(data: data) {
-                Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 200)
-                    .accessibilityLabel("Фото выполненной работы")
-            }
-            if let data = record.receiptImageData, let image = UIImage(data: data) {
-                Image(uiImage: image)
-                    .resizable().scaledToFit().frame(maxHeight: 160)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .accessibilityLabel("Фото чека")
-            }
+            GaragePhotoStrip(title: "Фото работы", primary: record.imageData, additional: record.extraPhotoData)
+            GaragePhotoStrip(title: "Чеки", primary: record.receiptImageData, additional: record.extraReceiptData, height: 95)
         }
         .padding(16)
         .garageCard(cornerRadius: 20)
@@ -141,7 +140,9 @@ private struct ServiceRecordEditor: View {
     @State private var notes: String
     @State private var parts: String
     @State private var receiptData: Data?
+    @State private var extraReceiptData: Data?
     @State private var imageData: Data?
+    @State private var extraPhotoData: Data?
     @State private var photoLoading = false
     @State private var receiptLoading = false
     @State private var errorMessage: String?
@@ -157,7 +158,9 @@ private struct ServiceRecordEditor: View {
         _notes = State(initialValue: record.notes)
         _parts = State(initialValue: record.parts)
         _receiptData = State(initialValue: record.receiptImageData)
+        _extraReceiptData = State(initialValue: record.extraReceiptData)
         _imageData = State(initialValue: record.imageData)
+        _extraPhotoData = State(initialValue: record.extraPhotoData)
     }
 
     var body: some View {
@@ -189,8 +192,8 @@ private struct ServiceRecordEditor: View {
                     TextField("Марки, артикулы и детали", text: $parts, axis: .vertical)
                         .lineLimit(2...5)
                 }
-                ServicePhotoField(title: "Фото выполненной работы", data: $imageData, isLoading: $photoLoading)
-                ServicePhotoField(title: "Фото чека", data: $receiptData, isLoading: $receiptLoading)
+                ServicePhotoField(title: "Фото выполненной работы", data: $imageData, additionalData: $extraPhotoData, isLoading: $photoLoading)
+                ServicePhotoField(title: "Фото чека", data: $receiptData, additionalData: $extraReceiptData, isLoading: $receiptLoading)
                 Section("Заметка") {
                     TextField("Дополнительные сведения", text: $notes, axis: .vertical)
                         .lineLimit(2...6)
@@ -230,7 +233,9 @@ private struct ServiceRecordEditor: View {
         record.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         record.parts = parts.trimmingCharacters(in: .whitespacesAndNewlines)
         record.receiptImageData = receiptData
+        record.extraReceiptData = extraReceiptData
         record.imageData = imageData
+        record.extraPhotoData = extraPhotoData
         do {
             try modelContext.save()
             dismiss()

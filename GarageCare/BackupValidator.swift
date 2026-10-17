@@ -10,7 +10,7 @@ enum BackupValidationError: LocalizedError {
 
 enum BackupValidator {
     static func validate(_ backup: BackupPayload) throws {
-        guard (1...3).contains(backup.version) else {
+        guard (1...4).contains(backup.version) else {
             throw BackupValidationError.invalid("Неподдерживаемая версия резервной копии.")
         }
         func unique(_ ids: [UUID]) -> Bool {
@@ -27,7 +27,10 @@ enum BackupValidator {
         guard backup.vehicles.allSatisfy({ $0.currentMileage >= 0 && $0.year >= 1886 &&
             $0.year <= Calendar.current.component(.year, from: .now) + 2 &&
             ($0.engineHours ?? 0).isFinite && ($0.engineHours ?? 0) >= 0 &&
-            $0.expectedFuelConsumption.map { $0.isFinite && $0 >= 0 } ?? true
+            ($0.expectedFuelConsumption.map { $0.isFinite && $0 >= 0 } ?? true) &&
+            ($0.insuranceCost.map { $0.isFinite && $0 >= 0 } ?? true) &&
+            ($0.insurancePeriodMonths.map { [1, 3, 6, 12].contains($0) } ?? true) &&
+            ($0.huStartDate == nil || $0.huDueDate == nil || $0.huDueDate! >= $0.huStartDate!)
         }) else {
             throw BackupValidationError.invalid("Недопустимые сведения об автомобиле.")
         }

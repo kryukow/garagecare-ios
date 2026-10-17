@@ -16,12 +16,15 @@ struct VehicleDetailView: View {
         case mileage
         case addTask
         case editVehicle
+        case deadlines
 
         var id: String { rawValue }
     }
 
     @State private var activeModal: ActiveModal?
     @State private var selectedTask: MaintenanceTask?
+    @State private var showingVehiclePhotos = false
+    @State private var selectedVehiclePhoto = 0
 
     init(vehicle: Vehicle) {
         self.vehicle = vehicle
@@ -51,6 +54,20 @@ struct VehicleDetailView: View {
                 ScrollView(.vertical) {
                     VStack(spacing: 18) {
                         VehicleHero(vehicle: vehicle)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if !GaragePhotoArchive.images(
+                                    primary: vehicle.imageData, additional: vehicle.extraPhotoData
+                                ).isEmpty {
+                                    selectedVehiclePhoto = 0
+                                    showingVehiclePhotos = true
+                                }
+                            }
+                            .accessibilityHint("Нажми, чтобы посмотреть фотографии автомобиля")
+
+                        VehicleDeadlinesCard(vehicle: vehicle) {
+                            activeModal = .deadlines
+                        }
 
                         mileageCard
 
@@ -228,7 +245,15 @@ struct VehicleDetailView: View {
                 TaskEditorView(vehicle: vehicle)
             case .editVehicle:
                 EditVehicleView(vehicle: vehicle)
+            case .deadlines:
+                VehicleDeadlinesEditor(vehicle: vehicle)
             }
+        }
+        .fullScreenCover(isPresented: $showingVehiclePhotos) {
+            GaragePhotoViewer(
+                images: GaragePhotoArchive.images(primary: vehicle.imageData, additional: vehicle.extraPhotoData),
+                selectedIndex: $selectedVehiclePhoto
+            )
         }
     }
 
@@ -687,7 +712,9 @@ private struct EditVehicleView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Bindable var vehicle: Vehicle
-    @State private var photoItem: PhotosPickerItem?
+    @State private var imageData: Data?
+    @State private var extraPhotoData: Data?
+    @State private var photoLoading = false
     @State private var expectedConsumption = ""
     @State private var engineHours = ""
     @State private var saveError: String?
@@ -718,16 +745,10 @@ private struct EditVehicleView: View {
                     Text("Необязательно. Используется как ориентир до появления фактической статистики по заправкам.")
                 }
 
-                Section("Фото") {
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        Label("Выбрать фото", systemImage: "photo")
-                    }
-                    if vehicle.imageData != nil {
-                        Button("Удалить фото", role: .destructive) {
-                            vehicle.imageData = nil
-                        }
-                    }
-                }
+                ServicePhotoField(
+                    title: "Фото автомобиля", data: $imageData,
+                    additionalData: $extraPhotoData, isLoading: $photoLoading
+                )
 
                 Section("Заметка") {
                     TextField("Текст", text: $vehicle.notes, axis: .vertical)
@@ -743,6 +764,7 @@ private struct EditVehicleView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Готово") {
+                        guard !photoLoading else { return }
                         let normalized = expectedConsumption.replacingOccurrences(of: ",", with: ".")
                         vehicle.expectedFuelConsumption = Double(normalized) ?? 0
                         let normalizedHours = engineHours.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
@@ -752,6 +774,8 @@ private struct EditVehicleView: View {
                             return
                         }
                         vehicle.engineHours = hours
+                        vehicle.imageData = imageData
+                        vehicle.extraPhotoData = extraPhotoData
                         do { try modelContext.save(); dismiss() }
                         catch { saveError = error.localizedDescription }
                     }
@@ -762,13 +786,8 @@ private struct EditVehicleView: View {
                     ? String(format: "%.1f", vehicle.expectedFuelConsumption)
                     : ""
                 engineHours = vehicle.engineHours > 0 ? String(format: "%.1f", vehicle.engineHours) : ""
-            }
-            .onChange(of: photoItem) { _, newItem in
-                Task {
-                    if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                        vehicle.imageData = data
-                    }
-                }
+                imageData = vehicle.imageData
+                extraPhotoData = vehicle.extraPhotoData
             }
         }
     }

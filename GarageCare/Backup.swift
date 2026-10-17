@@ -23,6 +23,15 @@ struct VehicleSnapshot: Codable {
     let notes: String
     let expectedFuelConsumption: Double?
     let imageData: Data?
+    let extraPhotoData: Data?
+    let huStartDate: Date?
+    let huDueDate: Date?
+    let insuranceStartDate: Date?
+    let insuranceNextDebitDate: Date?
+    let insurancePeriodMonths: Int?
+    let insuranceCost: Double?
+    let insuranceCurrency: String?
+    let insuranceLastConfirmedDate: Date?
     let createdAt: Date
 
     init(_ value: Vehicle) {
@@ -36,6 +45,15 @@ struct VehicleSnapshot: Codable {
         notes = value.notes
         expectedFuelConsumption = value.expectedFuelConsumption
         imageData = value.imageData
+        extraPhotoData = value.extraPhotoData
+        huStartDate = value.huStartDate
+        huDueDate = value.huDueDate
+        insuranceStartDate = value.insuranceStartDate
+        insuranceNextDebitDate = value.insuranceNextDebitDate
+        insurancePeriodMonths = value.insurancePeriodMonths
+        insuranceCost = value.insuranceCost
+        insuranceCurrency = value.insuranceCurrency
+        insuranceLastConfirmedDate = value.insuranceLastConfirmedDate
         createdAt = value.createdAt
     }
 }
@@ -52,6 +70,7 @@ struct TaskSnapshot: Codable {
     let lastDate: Date
     let notes: String
     let imageData: Data?
+    let extraPhotoData: Data?
     let createdAt: Date
 
     init(_ value: MaintenanceTask) {
@@ -66,6 +85,7 @@ struct TaskSnapshot: Codable {
         lastDate = value.lastDate
         notes = value.notes
         imageData = value.imageData
+        extraPhotoData = value.extraPhotoData
         createdAt = value.createdAt
     }
 }
@@ -84,6 +104,8 @@ struct RecordSnapshot: Codable {
     let parts: String?
     let receiptImageData: Data?
     let imageData: Data?
+    let extraPhotoData: Data?
+    let extraReceiptData: Data?
 
     init(_ value: ServiceRecord) {
         id = value.id
@@ -99,6 +121,8 @@ struct RecordSnapshot: Codable {
         parts = value.parts
         receiptImageData = value.receiptImageData
         imageData = value.imageData
+        extraPhotoData = value.extraPhotoData
+        extraReceiptData = value.extraReceiptData
     }
 }
 

@@ -15,6 +15,15 @@ final class Vehicle {
     var notes: String
     var expectedFuelConsumption: Double = 0
     @Attribute(.externalStorage) var imageData: Data?
+    @Attribute(.externalStorage) var extraPhotoData: Data? = nil
+    var huStartDate: Date? = nil
+    var huDueDate: Date? = nil
+    var insuranceStartDate: Date? = nil
+    var insuranceNextDebitDate: Date? = nil
+    var insurancePeriodMonths: Int = 12
+    var insuranceCost: Double = 0
+    var insuranceCurrency: String = "EUR"
+    var insuranceLastConfirmedDate: Date? = nil
     var createdAt: Date
 
     init(
@@ -28,9 +37,27 @@ final class Vehicle {
         notes: String = "",
         expectedFuelConsumption: Double = 0,
         imageData: Data? = nil,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        extraPhotoData: Data? = nil,
+        huStartDate: Date? = nil,
+        huDueDate: Date? = nil,
+        insuranceStartDate: Date? = nil,
+        insuranceNextDebitDate: Date? = nil,
+        insurancePeriodMonths: Int = 12,
+        insuranceCost: Double = 0,
+        insuranceCurrency: String = "EUR",
+        insuranceLastConfirmedDate: Date? = nil
     ) {
         self.id = id
+        self.extraPhotoData = extraPhotoData
+        self.huStartDate = huStartDate
+        self.huDueDate = huDueDate
+        self.insuranceStartDate = insuranceStartDate
+        self.insuranceNextDebitDate = insuranceNextDebitDate
+        self.insurancePeriodMonths = insurancePeriodMonths
+        self.insuranceCost = insuranceCost
+        self.insuranceCurrency = insuranceCurrency
+        self.insuranceLastConfirmedDate = insuranceLastConfirmedDate
         self.make = make
         self.model = model
         self.year = year
@@ -61,6 +88,7 @@ final class MaintenanceTask {
     var lastDate: Date
     var notes: String
     @Attribute(.externalStorage) var imageData: Data?
+    @Attribute(.externalStorage) var extraPhotoData: Data? = nil
     var createdAt: Date
 
     init(
@@ -75,10 +103,12 @@ final class MaintenanceTask {
         lastDate: Date = .now,
         notes: String = "",
         imageData: Data? = nil,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        extraPhotoData: Data? = nil
     ) {
         self.id = id
         self.vehicleID = vehicleID
+        self.extraPhotoData = extraPhotoData
         self.title = title
         self.intervalKm = intervalKm
         self.intervalMonths = intervalMonths
@@ -181,6 +211,8 @@ final class ServiceRecord {
     var parts: String = ""
     @Attribute(.externalStorage) var receiptImageData: Data?
     @Attribute(.externalStorage) var imageData: Data?
+    @Attribute(.externalStorage) var extraPhotoData: Data? = nil
+    @Attribute(.externalStorage) var extraReceiptData: Data? = nil
 
     init(
         id: UUID = UUID(),
@@ -195,9 +227,13 @@ final class ServiceRecord {
         notes: String = "",
         parts: String = "",
         receiptImageData: Data? = nil,
-        imageData: Data? = nil
+        imageData: Data? = nil,
+        extraPhotoData: Data? = nil,
+        extraReceiptData: Data? = nil
     ) {
         self.id = id
+        self.extraPhotoData = extraPhotoData
+        self.extraReceiptData = extraReceiptData
         self.vehicleID = vehicleID
         self.taskID = taskID
         self.title = title

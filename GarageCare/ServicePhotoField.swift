@@ -2,61 +2,120 @@ import PhotosUI
 import SwiftUI
 import UIKit
 
-/// The same picker is used for a service photo and for a separate receipt.
+/// Adds several images while retaining the original first image in the legacy
+/// SwiftData field. The extra photos are stored separately for safe migration.
 struct ServicePhotoField: View {
     let title: String
     @Binding var data: Data?
+    @Binding var additionalData: Data?
     @Binding var isLoading: Bool
-    @State private var selection: PhotosPickerItem?
+
+    @State private var selection: [PhotosPickerItem] = []
+    @State private var selectedIndex = 0
+    @State private var showingViewer = false
     @State private var errorMessage: String?
+
+    private var images: [Data] {
+        GaragePhotoArchive.images(primary: data, additional: additionalData)
+    }
 
     var body: some View {
         Section(title) {
-            PhotosPicker(selection: $selection, matching: .images) {
-                Label(data == nil ? "Прикрепить фото" : "Заменить фото", systemImage: "photo.on.rectangle")
+            PhotosPicker(selection: $selection, maxSelectionCount: 10, matching: .images) {
+                Label("Добавить фотографии", systemImage: "photo.badge.plus")
             }
-            if isLoading { ProgressView("Загрузка фото…") }
-            if let data, let image = UIImage(data: data) {
-                Image(uiImage: image)
-                    .resizable().scaledToFit().frame(maxHeight: 220)
-                    .accessibilityLabel(title)
-                Button("Удалить фото", role: .destructive) {
-                    selection = nil
-                    self.data = nil
+            .disabled(isLoading || images.count >= 30)
+
+            if isLoading { ProgressView("Подготовка фотографий…") }
+
+            if !images.isEmpty {
+                Text("\(images.count) фото · нажми для просмотра")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ScrollView(.horizontal) {
+                    HStack(spacing: 12) {
+                        ForEach(Array(images.enumerated()), id: \.offset) { index, bytes in
+                            if let image = UIImage(data: bytes) {
+                                ZStack(alignment: .topTrailing) {
+                                    Button {
+                                        selectedIndex = index
+                                        showingViewer = true
+                                    } label: {
+                                        Image(uiImage: image)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 120, height: 105)
+                                            .clipped()
+                                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("Открыть фото \(index + 1)")
+
+                                    Button(role: .destructive) {
+                                        var updated = images
+                                        updated.remove(at: index)
+                                        var primary = data
+                                        var extras = additionalData
+                                        GaragePhotoArchive.store(updated, primary: &primary, additional: &extras)
+                                        data = primary
+                                        additionalData = extras
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.title3)
+                                            .symbolRenderingMode(.palette)
+                                            .foregroundStyle(.white, Color.black.opacity(0.6))
+                                            .padding(4)
+                                    }
+                                    .accessibilityLabel("Удалить фото \(index + 1)")
+                                }
+                            }
+                        }
+                    }
                 }
+                .scrollIndicators(.hidden)
             }
-            if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
+
+            if let errorMessage {
+                Text(errorMessage).font(.footnote).foregroundStyle(.red)
+            }
         }
-        .task(id: selection) {
-            guard let selection else { isLoading = false; return }
-            isLoading = true
-            errorMessage = nil
-            defer { isLoading = false }
+        .onChange(of: selection.count) { _, count in
+            guard count > 0 else { return }
+            let picked = selection
+            Task { await addPhotos(picked) }
+        }
+        .fullScreenCover(isPresented: $showingViewer) {
+            GaragePhotoViewer(images: images, selectedIndex: $selectedIndex)
+        }
+    }
+
+    @MainActor
+    private func addPhotos(_ items: [PhotosPickerItem]) async {
+        guard !isLoading else { return }
+        isLoading = true
+        errorMessage = nil
+        defer {
+            isLoading = false
+            selection = []
+        }
+
+        var updated = images
+        for item in items {
+            if updated.count >= 30 {
+                errorMessage = "Можно хранить до 30 фотографий в одном разделе."
+                break
+            }
             do {
-                guard let bytes = try await selection.loadTransferable(type: Data.self),
-                      let image = UIImage(data: bytes) else {
-                    errorMessage = "Не удалось открыть фото. Выбери другое изображение."
-                    return
-                }
-                try Task.checkCancellation()
-                // Bound storage and JSON backup size; also normalize HEIC and orientation.
-                let ratio = min(1, 2048 / max(image.size.width, image.size.height))
-                let size = CGSize(width: image.size.width * ratio, height: image.size.height * ratio)
-                let format = UIGraphicsImageRendererFormat()
-                format.scale = 1
-                let normalized = UIGraphicsImageRenderer(size: size, format: format).image { _ in
-                    image.draw(in: CGRect(origin: .zero, size: size))
-                }
-                guard let jpeg = normalized.jpegData(compressionQuality: 0.85) else {
-                    errorMessage = "Не удалось обработать фото."
-                    return
-                }
-                data = jpeg
-            } catch is CancellationError {
-                // A newly selected image supersedes the previous request.
+                let jpeg = try await GaragePhotoArchive.normalized(item)
+                updated.append(jpeg)
             } catch {
-                errorMessage = "Не удалось загрузить фото: \(error.localizedDescription)"
+                errorMessage = "Часть фотографий не загрузилась: \(error.localizedDescription)"
             }
         }
+        var primary = data
+        var extras = additionalData
+        GaragePhotoArchive.store(updated, primary: &primary, additional: &extras)
+        data = primary
+        additionalData = extras
     }
 }

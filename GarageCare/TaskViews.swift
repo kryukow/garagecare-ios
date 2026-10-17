@@ -58,12 +58,9 @@ struct TaskDetailView: View {
                     }
                 }
 
-                if let data = task.imageData, let image = UIImage(data: data) {
+                if task.imageData != nil {
                     detailCard(title: "Фото работы") {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxHeight: 220)
+                        GaragePhotoStrip(title: "Нажми для просмотра", primary: task.imageData, additional: task.extraPhotoData)
                     }
                 }
 
@@ -319,6 +316,7 @@ struct TaskEditorView: View {
     @State private var lastDate: Date
     @State private var notes: String
     @State private var imageData: Data?
+    @State private var extraPhotoData: Data?
     @State private var photoLoading = false
     @State private var useEngineHours: Bool
     @State private var useCalendar: Bool
@@ -339,6 +337,7 @@ struct TaskEditorView: View {
         _lastDate = State(initialValue: task?.lastDate ?? .now)
         _notes = State(initialValue: task?.notes ?? "")
         _imageData = State(initialValue: task?.imageData)
+        _extraPhotoData = State(initialValue: task?.extraPhotoData)
     }
 
     private var parsedIntervals: (km: Int, months: Int, hours: Double, mileage: Int, lastHours: Double)? {
@@ -439,7 +438,7 @@ struct TaskEditorView: View {
                     TextField("Масло, артикулы, допуски и другое", text: $notes, axis: .vertical)
                         .lineLimit(2...6)
                 }
-                ServicePhotoField(title: "Фото работы", data: $imageData, isLoading: $photoLoading)
+                ServicePhotoField(title: "Фото работы", data: $imageData, additionalData: $extraPhotoData, isLoading: $photoLoading)
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
                 }
@@ -484,6 +483,7 @@ struct TaskEditorView: View {
             task.lastDate = lastDate
             task.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
             task.imageData = imageData
+            task.extraPhotoData = extraPhotoData
             savedTask = task
         } else {
             let newTask = MaintenanceTask(
@@ -496,7 +496,8 @@ struct TaskEditorView: View {
                 lastMileage: mileage,
                 lastDate: lastDate,
                 notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
-                imageData: imageData
+                imageData: imageData,
+                extraPhotoData: extraPhotoData
             )
             modelContext.insert(newTask)
             savedTask = newTask
@@ -534,7 +535,9 @@ struct CompleteTaskView: View {
     @State private var receiptLoading = false
     @State private var photoLoading = false
     @State private var imageData: Data?
+    @State private var extraPhotoData: Data?
     @State private var receiptImageData: Data?
+    @State private var extraReceiptData: Data?
     @State private var date = Date.now
     @State private var cost = ""
     @State private var currency = "EUR"
@@ -583,8 +586,8 @@ struct CompleteTaskView: View {
                     TextField("Артикулы, марки, номера деталей", text: $parts, axis: .vertical)
                         .lineLimit(2...5)
                 }
-                ServicePhotoField(title: "Фото выполненной работы", data: $imageData, isLoading: $photoLoading)
-                ServicePhotoField(title: "Фото чека", data: $receiptImageData, isLoading: $receiptLoading)
+                ServicePhotoField(title: "Фото выполненной работы", data: $imageData, additionalData: $extraPhotoData, isLoading: $photoLoading)
+                ServicePhotoField(title: "Фото чека", data: $receiptImageData, additionalData: $extraReceiptData, isLoading: $receiptLoading)
 
                 Section("Заметка") {
                     TextField("Что установлено или сделано", text: $notes, axis: .vertical)
@@ -646,7 +649,9 @@ struct CompleteTaskView: View {
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             parts: parts.trimmingCharacters(in: .whitespacesAndNewlines),
             receiptImageData: receiptImageData,
-            imageData: imageData
+            imageData: imageData,
+            extraPhotoData: extraPhotoData,
+            extraReceiptData: extraReceiptData
         )
         modelContext.insert(record)
         task.lastMileage = mileageValue
@@ -713,14 +718,8 @@ struct ServiceRecordRow: View {
                     .font(.subheadline.bold())
             }
 
-            if let data = record.imageData, let image = UIImage(data: data) {
-                Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 200)
-                    .accessibilityLabel("Фото выполненной работы")
-            }
-            if let data = record.receiptImageData, let image = UIImage(data: data) {
-                Image(uiImage: image).resizable().scaledToFit().frame(maxHeight: 160)
-                    .accessibilityLabel("Фото чека")
-            }
+            GaragePhotoStrip(title: "Фото выполненной работы", primary: record.imageData, additional: record.extraPhotoData)
+            GaragePhotoStrip(title: "Фото чека", primary: record.receiptImageData, additional: record.extraReceiptData, height: 95)
             if !record.notes.isEmpty {
                 Text(record.notes)
                     .font(.subheadline)

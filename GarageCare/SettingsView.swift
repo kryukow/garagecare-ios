@@ -45,7 +45,7 @@ struct SettingsView: View {
     @State private var activeAlert: SettingsAlert?
 
     private var appVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.4.2"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.4.3"
     }
 
     var body: some View {
@@ -64,16 +64,18 @@ struct SettingsView: View {
                         value: $warningDays,
                         in: 0...60
                     )
-                    Stepper(
-                        "За \(Formatters.engineHours(warningEngineHours))",
-                        value: $warningEngineHours,
-                        in: 0...200,
-                        step: 5
-                    )
+                    if tasks.contains(where: { $0.intervalEngineHours > 0 }) {
+                        Stepper(
+                            "По моточасам: за \(Formatters.engineHours(warningEngineHours))",
+                            value: $warningEngineHours,
+                            in: 0...200,
+                            step: 5
+                        )
+                    }
                 } header: {
                     Text("Предупреждать заранее")
                 } footer: {
-                    Text("Расчёт по пробегу обновляется после внесения нового показания одометра.")
+                    Text("Моточасы отображаются только когда хотя бы одна работа использует их. Дни нужны для календарных регламентов, включая HU/TÜV.")
                 }
 
                 Section("Ввод пробега") {
@@ -254,7 +256,7 @@ struct SettingsView: View {
 
     private func prepareExport() {
         let payload = BackupPayload(
-            version: 3,
+            version: 4,
             exportedAt: .now,
             vehicles: vehicles.map(VehicleSnapshot.init),
             tasks: tasks.map(TaskSnapshot.init),
@@ -337,7 +339,16 @@ struct SettingsView: View {
                     notes: value.notes,
                     expectedFuelConsumption: value.expectedFuelConsumption ?? 0,
                     imageData: value.imageData,
-                    createdAt: value.createdAt
+                    createdAt: value.createdAt,
+                    extraPhotoData: value.extraPhotoData,
+                    huStartDate: value.huStartDate,
+                    huDueDate: value.huDueDate,
+                    insuranceStartDate: value.insuranceStartDate,
+                    insuranceNextDebitDate: value.insuranceNextDebitDate,
+                    insurancePeriodMonths: value.insurancePeriodMonths ?? 12,
+                    insuranceCost: value.insuranceCost ?? 0,
+                    insuranceCurrency: value.insuranceCurrency ?? "EUR",
+                    insuranceLastConfirmedDate: value.insuranceLastConfirmedDate
                 )
             )
         }
@@ -356,7 +367,8 @@ struct SettingsView: View {
                     lastDate: value.lastDate,
                     notes: value.notes,
                     imageData: value.imageData,
-                    createdAt: value.createdAt
+                    createdAt: value.createdAt,
+                    extraPhotoData: value.extraPhotoData
                 )
             )
         }
@@ -376,7 +388,9 @@ struct SettingsView: View {
                     notes: value.notes,
                     parts: value.parts ?? "",
                     receiptImageData: value.receiptImageData,
-                    imageData: value.imageData
+                    imageData: value.imageData,
+                    extraPhotoData: value.extraPhotoData,
+                    extraReceiptData: value.extraReceiptData
                 )
             )
         }
@@ -440,6 +454,7 @@ struct SettingsView: View {
                 lastUpdate: lastUpdate,
                 afterDays: mileageReminderDays
             )
+            NotificationManager.shared.refreshVehicleDeadlines(vehicle: vehicle)
         }
     }
 }

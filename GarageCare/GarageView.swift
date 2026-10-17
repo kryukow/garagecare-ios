@@ -264,6 +264,8 @@ private struct VehicleCard: View {
                         .padding(.vertical, 4)
                         .background(Color.white.opacity(0.055), in: Capsule())
                 }
+
+                GarageDeadlineLabels(vehicle: vehicle)
             }
 
             Spacer(minLength: 4)
@@ -404,7 +406,8 @@ private struct AddVehicleView: View {
     @State private var notes = ""
     @State private var expectedConsumption = ""
     @State private var imageData: Data?
-    @State private var photoItem: PhotosPickerItem?
+    @State private var extraPhotoData: Data?
+    @State private var photoLoading = false
     @State private var addTemplates = true
     @State private var errorMessage: String?
 
@@ -443,19 +446,7 @@ private struct AddVehicleView: View {
                     Text("Необязательно. Будет показан как ориентир, пока приложение не рассчитает фактический расход по заправкам.")
                 }
 
-                Section("Фото") {
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        Label(imageData == nil ? "Выбрать фото" : "Заменить фото", systemImage: "photo")
-                    }
-
-                    if let imageData, let image = UIImage(data: imageData) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxHeight: 180)
-                            .clipShape(RoundedRectangle(cornerRadius: 14))
-                    }
-                }
+                ServicePhotoField(title: "Фото автомобиля", data: $imageData, additionalData: $extraPhotoData, isLoading: $photoLoading)
 
                 Section {
                     Toggle("Добавить список типовых работ", isOn: $addTemplates)
@@ -480,14 +471,10 @@ private struct AddVehicleView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Сохранить", action: save)
-                        .disabled(!canSave)
+                        .disabled(!canSave || photoLoading)
                 }
             }
-            .onChange(of: photoItem) { _, newItem in
-                Task {
-                    imageData = try? await newItem?.loadTransferable(type: Data.self)
-                }
-            }
+
         }
     }
 
@@ -508,7 +495,8 @@ private struct AddVehicleView: View {
             engineHours: hoursValue,
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             expectedFuelConsumption: Double(normalizedExpected) ?? 0,
-            imageData: imageData
+            imageData: imageData,
+            extraPhotoData: extraPhotoData
         )
         modelContext.insert(vehicle)
         modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: mileageValue, engineHours: hoursValue))
@@ -520,13 +508,12 @@ private struct AddVehicleView: View {
                 "Салонный фильтр",
                 "Свечи зажигания",
                 "Тормозная жидкость",
-                "Ремень / цепь ГРМ",
-                "HU / TÜV"
+                "Ремень / цепь ГРМ"
             ].forEach { title in
                 modelContext.insert(MaintenanceTask(
                     vehicleID: vehicle.id,
                     title: title,
-                    intervalMonths: title == "HU / TÜV" ? 24 : 0,
+                    intervalMonths: 0,
                     lastEngineHours: hoursValue,
                     lastMileage: mileageValue
                 ))
