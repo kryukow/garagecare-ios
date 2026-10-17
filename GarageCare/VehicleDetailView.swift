@@ -414,10 +414,14 @@ private struct TaskCard: View {
                 if let km = task.kilometersRemaining(currentMileage: currentMileage) {
                     Text(km >= 0 ? "\(Formatters.mileage(km)) осталось" : "+\(Formatters.mileage(abs(km))) просрочено")
                 }
-                if let days = task.daysRemaining() {
-                    Text(days >= 0 ? "\(days) дн. осталось" : "+\(abs(days)) дн. просрочено")
+                if let hours = task.engineHoursRemaining(currentEngineHours: currentEngineHours) {
+                    Text(
+                        hours >= 0
+                            ? "\(Formatters.engineHours(hours)) осталось"
+                            : "+\(Formatters.engineHours(abs(hours))) просрочено"
+                    )
                 }
-                if task.intervalKm == 0 && task.intervalMonths == 0 {
+                if task.intervalKm == 0 && task.intervalEngineHours == 0 {
                     Text("Интервал не задан")
                 }
             }
@@ -503,10 +507,10 @@ private struct TaskListRow: View {
                         )
                     }
 
-                    if let days = task.daysRemaining() {
+                    if let hours = task.engineHoursRemaining(currentEngineHours: currentEngineHours) {
                         Label(
-                            days >= 0 ? "\(days) дн." : "−\(abs(days)) дн.",
-                            systemImage: "calendar"
+                            hours >= 0 ? Formatters.engineHours(hours) : "−\(Formatters.engineHours(abs(hours)))",
+                            systemImage: "gauge.with.dots.needle.50percent"
                         )
                     }
 
