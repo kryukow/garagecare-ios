@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct GarageProgressBar: View {
     let progress: Double
@@ -147,5 +148,32 @@ private struct GarageAdaptiveTabBarModifier: ViewModifier {
 extension View {
     func garageAdaptiveTabBar() -> some View {
         modifier(GarageAdaptiveTabBarModifier())
+    }
+}
+
+
+private struct GarageKeyboardDismissModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Готово") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil,
+                            from: nil,
+                            for: nil
+                        )
+                    }
+                }
+            }
+    }
+}
+
+extension View {
+    func garageKeyboardDismiss() -> some View {
+        modifier(GarageKeyboardDismissModifier())
     }
 }
