@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct GarageProgressBar: View {
     let progress: Double
@@ -98,19 +99,31 @@ struct GarageScreenBackground: View {
 }
 
 extension MaintenanceTask {
-    func displayProgress(currentMileage: Int) -> Double {
-        let value = progress(currentMileage: currentMileage)
+    func displayProgress(currentMileage: Int, currentEngineHours: Double) -> Double {
+        let value = progress(
+            currentMileage: currentMileage,
+            currentEngineHours: currentEngineHours
+        )
         return value.isFinite ? min(max(value, 0), 1) : 0
     }
 
-    func displayColor(currentMileage: Int, warningKm: Int, warningDays: Int) -> Color {
+    func displayColor(
+        currentMileage: Int,
+        currentEngineHours: Double,
+        warningKm: Int,
+        warningEngineHours: Double
+    ) -> Color {
         let dueState = state(
             currentMileage: currentMileage,
+            currentEngineHours: currentEngineHours,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningEngineHours: warningEngineHours
         )
         return Color.maintenanceStatus(
-            progress: displayProgress(currentMileage: currentMileage),
+            progress: displayProgress(
+                currentMileage: currentMileage,
+                currentEngineHours: currentEngineHours
+            ),
             state: dueState
         )
     }
@@ -135,5 +148,32 @@ private struct GarageAdaptiveTabBarModifier: ViewModifier {
 extension View {
     func garageAdaptiveTabBar() -> some View {
         modifier(GarageAdaptiveTabBarModifier())
+    }
+}
+
+
+private struct GarageKeyboardDismissModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Готово") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil,
+                            from: nil,
+                            for: nil
+                        )
+                    }
+                }
+            }
+    }
+}
+
+extension View {
+    func garageKeyboardDismiss() -> some View {
+        modifier(GarageKeyboardDismissModifier())
     }
 }

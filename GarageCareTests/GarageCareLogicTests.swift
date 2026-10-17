@@ -13,9 +13,9 @@ final class GarageCareLogicTests: XCTestCase {
         XCTAssertEqual(
             task.state(
                 currentMileage: 101_000,
+                currentEngineHours: 0,
                 warningKm: 1_000,
-                warningDays: 7,
-                now: Date(timeIntervalSince1970: 1_700_000_000)
+                warningEngineHours: 10
             ),
             .notConfigured
         )
@@ -33,9 +33,9 @@ final class GarageCareLogicTests: XCTestCase {
         XCTAssertEqual(
             task.state(
                 currentMileage: 105_000,
+                currentEngineHours: 0,
                 warningKm: 1_000,
-                warningDays: 7,
-                now: Date(timeIntervalSince1970: 1_700_000_000)
+                warningEngineHours: 10
             ),
             .good
         )
@@ -43,9 +43,9 @@ final class GarageCareLogicTests: XCTestCase {
         XCTAssertEqual(
             task.state(
                 currentMileage: 109_000,
+                currentEngineHours: 0,
                 warningKm: 1_000,
-                warningDays: 7,
-                now: Date(timeIntervalSince1970: 1_700_000_000)
+                warningEngineHours: 10
             ),
             .soon
         )
@@ -53,9 +53,49 @@ final class GarageCareLogicTests: XCTestCase {
         XCTAssertEqual(
             task.state(
                 currentMileage: 110_001,
+                currentEngineHours: 0,
                 warningKm: 1_000,
-                warningDays: 7,
-                now: Date(timeIntervalSince1970: 1_700_000_000)
+                warningEngineHours: 10
+            ),
+            .overdue
+        )
+    }
+
+    func testMaintenanceEngineHoursTransitions() {
+        let task = MaintenanceTask(
+            vehicleID: UUID(),
+            title: "Масло",
+            intervalEngineHours: 100,
+            lastMileage: 100_000,
+            lastEngineHours: 500
+        )
+
+        XCTAssertEqual(
+            task.state(
+                currentMileage: 100_000,
+                currentEngineHours: 550,
+                warningKm: 1_000,
+                warningEngineHours: 10
+            ),
+            .good
+        )
+
+        XCTAssertEqual(
+            task.state(
+                currentMileage: 100_000,
+                currentEngineHours: 590,
+                warningKm: 1_000,
+                warningEngineHours: 10
+            ),
+            .soon
+        )
+
+        XCTAssertEqual(
+            task.state(
+                currentMileage: 100_000,
+                currentEngineHours: 601,
+                warningKm: 1_000,
+                warningEngineHours: 10
             ),
             .overdue
         )

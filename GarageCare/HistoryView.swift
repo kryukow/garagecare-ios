@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct HistoryView: View {
     @Query(sort: [SortDescriptor(\ServiceRecord.date, order: .reverse)])
@@ -96,12 +97,31 @@ private struct HistoryCard: View {
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
 
+                if record.engineHours > 0 {
+                    Label(
+                        Formatters.engineHours(record.engineHours),
+                        systemImage: "gauge.with.dots.needle.50percent"
+                    )
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                }
+
                 if let vehicle {
                     Label(vehicle.displayName, systemImage: "car.side.fill")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Color.garageGreen)
                         .lineLimit(1)
                 }
+            }
+
+            if let data = record.imageData, let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 180)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
 
             if !record.notes.isEmpty {

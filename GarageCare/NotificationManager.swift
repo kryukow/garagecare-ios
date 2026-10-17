@@ -29,15 +29,21 @@ final class NotificationManager {
         vehicle: Vehicle,
         tasks: [MaintenanceTask],
         warningKm: Int,
-        warningDays: Int
+        warningEngineHours: Double
     ) {
         let center = UNUserNotificationCenter.current()
-        let identifiers = tasks.flatMap { ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)"] }
+        let identifiers = tasks.flatMap {
+            ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)", "hours-\($0.id.uuidString)"]
+        }
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
 
         for task in tasks {
-            scheduleDateNotification(vehicle: vehicle, task: task, warningDays: warningDays)
             scheduleMileageNotification(vehicle: vehicle, task: task, warningKm: warningKm)
+            scheduleEngineHoursNotification(
+                vehicle: vehicle,
+                task: task,
+                warningEngineHours: warningEngineHours
+            )
         }
     }
 
@@ -73,7 +79,8 @@ final class NotificationManager {
         let center = UNUserNotificationCenter.current()
         let identifiers = [
             "date-\(task.id.uuidString)",
-            "km-\(task.id.uuidString)"
+            "km-\(task.id.uuidString)",
+            "hours-\(task.id.uuidString)"
         ]
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
         center.removeDeliveredNotifications(withIdentifiers: identifiers)
@@ -82,38 +89,36 @@ final class NotificationManager {
     func cancelNotifications(for vehicle: Vehicle, tasks: [MaintenanceTask]) {
         let center = UNUserNotificationCenter.current()
         let identifiers =
-            tasks.flatMap { ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)"] } +
+            tasks.flatMap {
+                ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)", "hours-\($0.id.uuidString)"]
+            } +
             ["mileage-entry-\(vehicle.id.uuidString)"]
 
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
         center.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 
-    private func scheduleDateNotification(vehicle: Vehicle, task: MaintenanceTask, warningDays: Int) {
-        guard let dueDate = task.nextDate() else { return }
-        let notificationDate = Calendar.current.date(byAdding: .day, value: -warningDays, to: dueDate) ?? dueDate
-
-        let content = UNMutableNotificationContent()
-        content.title = task.title
-        content.body = "Для \(vehicle.displayName) приближается регламентная работа."
-        content.sound = .default
-
-        if notificationDate <= .now {
-            let request = UNNotificationRequest(
-                identifier: "date-\(task.id.uuidString)",
-                content: content,
-                trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
-            )
-            UNUserNotificationCenter.current().add(request)
+    private func scheduleEngineHoursNotification(
+        vehicle: Vehicle,
+        task: MaintenanceTask,
+        warningEngineHours: Double
+    ) {
+        guard let remaining = task.engineHoursRemaining(currentEngineHours: vehicle.currentEngineHours),
+              remaining <= warningEngineHours else {
             return
         }
 
-        var components = Calendar.current.dateComponents([.year, .month, .day], from: notificationDate)
-        components.hour = 10
+        let content = UNMutableNotificationContent()
+        content.title = task.title
+        content.body = remaining < 0
+            ? "Для \(vehicle.displayName) работа просрочена на \(Formatters.engineHours(abs(remaining)))."
+            : "Для \(vehicle.displayName) осталось \(Formatters.engineHours(remaining))."
+        content.sound = .default
+
         let request = UNNotificationRequest(
-            identifier: "date-\(task.id.uuidString)",
+            identifier: "hours-\(task.id.uuidString)",
             content: content,
-            trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
         )
         UNUserNotificationCenter.current().add(request)
     }
