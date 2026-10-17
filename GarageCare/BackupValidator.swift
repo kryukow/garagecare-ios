@@ -44,11 +44,13 @@ enum BackupValidator {
                 backup.tasks.contains(where: { $0.id == taskID && $0.vehicleID == record.vehicleID })
             } ?? true
             return vehicleIDs.contains(record.vehicleID) && relatedTaskValid &&
-                record.mileage >= 0 && record.cost.isFinite && record.cost >= 0
+                record.mileage >= 0 && record.cost.isFinite && record.cost >= 0 &&
+                (record.engineHours ?? 0).isFinite && (record.engineHours ?? 0) >= 0
         }) else {
             throw BackupValidationError.invalid("В истории есть отсутствующий автомобиль, работа или неверная стоимость.")
         }
-        guard backup.mileageEntries.allSatisfy({ vehicleIDs.contains($0.vehicleID) && $0.mileage >= 0 }),
+        guard backup.mileageEntries.allSatisfy({ vehicleIDs.contains($0.vehicleID) && $0.mileage >= 0 &&
+                ($0.engineHours ?? 0).isFinite && ($0.engineHours ?? 0) >= 0 }),
               (backup.fuelEntries ?? []).allSatisfy({
                 vehicleIDs.contains($0.vehicleID) && $0.mileage >= 0 &&
                 $0.liters.isFinite && $0.liters > 0 &&
