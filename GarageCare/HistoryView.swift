@@ -98,6 +98,9 @@ private struct HistoryCard: View {
             Divider()
             HStack(spacing: 14) {
                 Label(Formatters.mileage(record.mileage), systemImage: "road.lanes")
+                if record.engineHours > 0 {
+                    Label(String(format: "%.1f мч", record.engineHours), systemImage: "gauge.with.dots.needle.50percent")
+                }
                 if let vehicle { Label(vehicle.displayName, systemImage: "car.side.fill") }
             }
             .font(.caption).foregroundStyle(.secondary)
@@ -127,6 +130,7 @@ private struct ServiceRecordEditor: View {
 
     @State private var title: String
     @State private var mileage: String
+    @State private var engineHours: String
     @State private var date: Date
     @State private var cost: String
     @State private var currency: String
@@ -140,6 +144,7 @@ private struct ServiceRecordEditor: View {
         self.record = record
         _title = State(initialValue: record.title)
         _mileage = State(initialValue: String(record.mileage))
+        _engineHours = State(initialValue: record.engineHours > 0 ? String(format: "%.1f", record.engineHours) : "")
         _date = State(initialValue: record.date)
         _cost = State(initialValue: String(record.cost))
         _currency = State(initialValue: record.currency)
@@ -154,6 +159,11 @@ private struct ServiceRecordEditor: View {
                 Section("Работа") {
                     TextField("Название", text: $title)
                     TextField("Пробег", text: $mileage).keyboardType(.numberPad)
+                    LabeledContent("Моточасы") {
+                        TextField("Не заданы", text: $engineHours)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                     DatePicker("Дата", selection: $date, displayedComponents: .date)
                 }
                 Section("Расходы") {
@@ -183,6 +193,7 @@ private struct ServiceRecordEditor: View {
                 }
                 if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             }
+            .garageKeyboardDismiss()
             .navigationTitle("Изменить запись")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -206,8 +217,15 @@ private struct ServiceRecordEditor: View {
             errorMessage = "Проверь название, пробег и стоимость."
             return
         }
+        let normalizedHours = engineHours.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+        let hours = normalizedHours.isEmpty ? 0.0 : (Double(normalizedHours) ?? -1)
+        guard hours.isFinite, hours >= 0 else {
+            errorMessage = "Проверь моточасы."
+            return
+        }
         record.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         record.mileage = mileageValue
+        record.engineHours = hours
         record.date = date
         record.cost = costValue
         record.currency = currency
