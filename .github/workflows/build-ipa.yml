@@ -2,6 +2,10 @@ name: Собрать IPA
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - fix/engine-hours-ui
 
 jobs:
   build:
