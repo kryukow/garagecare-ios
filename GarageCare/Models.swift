@@ -507,6 +507,10 @@ extension Color {
 }
 
 enum Formatters {
+    static func engineHours(_ value: Double) -> String {
+        value.formatted(.number.locale(Locale(identifier: "ru_RU")).precision(.fractionLength(0...1))) + " мч"
+    }
+
     static let integer: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
