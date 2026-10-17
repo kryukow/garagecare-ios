@@ -60,6 +60,7 @@ final class MaintenanceTask {
     var lastMileage: Int
     var lastDate: Date
     var notes: String
+    @Attribute(.externalStorage) var imageData: Data?
     var createdAt: Date
 
     init(
@@ -73,6 +74,7 @@ final class MaintenanceTask {
         lastMileage: Int,
         lastDate: Date = .now,
         notes: String = "",
+        imageData: Data? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -85,6 +87,7 @@ final class MaintenanceTask {
         self.lastMileage = lastMileage
         self.lastDate = lastDate
         self.notes = notes
+        self.imageData = imageData
         self.createdAt = createdAt
     }
 
@@ -143,6 +146,7 @@ final class MaintenanceTask {
         warningKm: Int,
         warningDays: Int,
         currentEngineHours: Double = 0,
+        warningEngineHours: Double = 10,
         now: Date = .now
     ) -> DueState {
         let km = kilometersRemaining(currentMileage: currentMileage)
@@ -152,7 +156,7 @@ final class MaintenanceTask {
         if (km.map { $0 < 0 } ?? false) || (days.map { $0 < 0 } ?? false) || (hours.map { $0 < 0 } ?? false) {
             return .overdue
         }
-        if (km.map { $0 <= warningKm } ?? false) || (days.map { $0 <= warningDays } ?? false) || (hours.map { $0 <= 10 } ?? false) {
+        if (km.map { $0 <= warningKm } ?? false) || (days.map { $0 <= warningDays } ?? false) || (hours.map { $0 <= warningEngineHours } ?? false) {
             return .soon
         }
         if km == nil && days == nil && hours == nil {
@@ -169,6 +173,7 @@ final class ServiceRecord {
     var taskID: UUID?
     var title: String
     var mileage: Int
+    var engineHours: Double = 0
     var date: Date
     var cost: Double
     var currency: String
@@ -182,6 +187,7 @@ final class ServiceRecord {
         taskID: UUID? = nil,
         title: String,
         mileage: Int,
+        engineHours: Double = 0,
         date: Date = .now,
         cost: Double = 0,
         currency: String = "EUR",
@@ -194,6 +200,7 @@ final class ServiceRecord {
         self.taskID = taskID
         self.title = title
         self.mileage = mileage
+        self.engineHours = engineHours
         self.date = date
         self.cost = cost
         self.currency = currency
@@ -208,12 +215,14 @@ final class MileageEntry {
     @Attribute(.unique) var id: UUID
     var vehicleID: UUID
     var mileage: Int
+    var engineHours: Double = 0
     var date: Date
 
-    init(id: UUID = UUID(), vehicleID: UUID, mileage: Int, date: Date = .now) {
+    init(id: UUID = UUID(), vehicleID: UUID, mileage: Int, engineHours: Double = 0, date: Date = .now) {
         self.id = id
         self.vehicleID = vehicleID
         self.mileage = mileage
+        self.engineHours = engineHours
         self.date = date
     }
 }
