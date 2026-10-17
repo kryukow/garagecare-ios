@@ -51,6 +51,7 @@ struct TaskSnapshot: Codable {
     let lastEngineHours: Double?
     let lastDate: Date
     let notes: String
+    let imageData: Data?
     let createdAt: Date
 
     init(_ value: MaintenanceTask) {
@@ -64,6 +65,7 @@ struct TaskSnapshot: Codable {
         lastEngineHours = value.lastEngineHours
         lastDate = value.lastDate
         notes = value.notes
+        imageData = value.imageData
         createdAt = value.createdAt
     }
 }
@@ -79,6 +81,7 @@ struct RecordSnapshot: Codable {
     let cost: Double
     let currency: String
     let notes: String
+    let imageData: Data?
 
     init(_ value: ServiceRecord) {
         id = value.id
@@ -91,6 +94,7 @@ struct RecordSnapshot: Codable {
         cost = value.cost
         currency = value.currency
         notes = value.notes
+        imageData = value.imageData
     }
 }
 
