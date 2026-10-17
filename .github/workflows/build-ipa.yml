@@ -11,10 +11,11 @@ on:
         type: boolean
         default: false
 
-# A newer main build replaces an older one; do not accumulate competing IPAs.
+# Preserve a running test/build when another commit is pushed.
+# GitHub may replace an older pending run, but must not interrupt an active job.
 concurrency:
   group: garagecare-ipa-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
