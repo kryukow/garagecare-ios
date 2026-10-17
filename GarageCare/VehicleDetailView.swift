@@ -656,6 +656,7 @@ private struct EditVehicleView: View {
     @Bindable var vehicle: Vehicle
     @State private var photoItem: PhotosPickerItem?
     @State private var expectedConsumption = ""
+    @State private var currentEngineHours = ""
 
     var body: some View {
         NavigationStack {
@@ -667,6 +668,12 @@ private struct EditVehicleView: View {
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                     Stepper("Год: \(vehicle.year)", value: $vehicle.year, in: 1900...2100)
+
+                    LabeledContent("Моточасы") {
+                        TextField("Не заданы", text: $currentEngineHours)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
 
                 Section {
@@ -703,6 +710,10 @@ private struct EditVehicleView: View {
                     Button("Готово") {
                         let normalized = expectedConsumption.replacingOccurrences(of: ",", with: ".")
                         vehicle.expectedFuelConsumption = Double(normalized) ?? 0
+                        let normalizedHours = currentEngineHours.replacingOccurrences(of: ",", with: ".")
+                        if let value = Double(normalizedHours), value >= vehicle.currentEngineHours {
+                            vehicle.currentEngineHours = value
+                        }
                         try? modelContext.save()
                         dismiss()
                     }
@@ -711,6 +722,9 @@ private struct EditVehicleView: View {
             .onAppear {
                 expectedConsumption = vehicle.expectedFuelConsumption > 0
                     ? String(format: "%.1f", vehicle.expectedFuelConsumption)
+                    : ""
+                currentEngineHours = vehicle.currentEngineHours > 0
+                    ? String(format: "%.1f", vehicle.currentEngineHours)
                     : ""
             }
             .onChange(of: photoItem) { _, newItem in
