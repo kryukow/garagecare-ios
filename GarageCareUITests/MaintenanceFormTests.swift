@@ -14,11 +14,13 @@ final class MaintenanceFormTests: XCTestCase {
         app.textFields["Название"].typeText("Масло")
         interval.tap()
         interval.typeText("10000")
-        if app.buttons["Готово"].exists { app.buttons["Готово"].tap() }
+        let done = app.buttons["Готово"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5), "Кнопка закрытия клавиатуры должна быть доступна")
+        done.tap()
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Следующая работа при")).firstMatch.exists)
         XCTAssertTrue(app.buttons["Сохранить"].isEnabled)
         let shot = XCTAttachment(screenshot: app.screenshot())
-        shot.name = "1.4.2 — интервал в километрах"
+        shot.name = "Интервал в километрах"
         shot.lifetime = .keepAlways
         add(shot)
     }
@@ -34,7 +36,7 @@ final class MaintenanceFormTests: XCTestCase {
         }
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Прикрепить фото")).count, 2)
         let shot = XCTAttachment(screenshot: app.screenshot())
-        shot.name = "1.4.2 — фото работы и чек"
+        shot.name = "Фото работы и чек"
         shot.lifetime = .keepAlways
         add(shot)
     }

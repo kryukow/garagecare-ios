@@ -145,7 +145,7 @@ extension View {
 private struct GarageKeyboardDismissModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .scrollDismissesKeyboard(.interactively)
+            .scrollDismissesKeyboard(.immediately)
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
