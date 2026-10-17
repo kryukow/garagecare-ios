@@ -221,7 +221,7 @@ struct SettingsView: View {
 
     private func prepareExport() {
         let payload = BackupPayload(
-            version: 3,
+            version: 4,
             exportedAt: .now,
             vehicles: vehicles.map(VehicleSnapshot.init),
             tasks: tasks.map(TaskSnapshot.init),
@@ -260,7 +260,7 @@ struct SettingsView: View {
 
             let payload = try decoder.decode(BackupPayload.self, from: data)
 
-            guard (1...3).contains(payload.version) else {
+            guard (1...4).contains(payload.version) else {
                 activeAlert = .message("Эта версия резервной копии не поддерживается.")
                 return
             }
@@ -312,6 +312,7 @@ struct SettingsView: View {
                     lastEngineHours: value.lastEngineHours ?? 0,
                     lastDate: value.lastDate,
                     notes: value.notes,
+                    imageData: value.imageData,
                     createdAt: value.createdAt
                 )
             )
@@ -329,7 +330,8 @@ struct SettingsView: View {
                     date: value.date,
                     cost: value.cost,
                     currency: value.currency,
-                    notes: value.notes
+                    notes: value.notes,
+                    imageData: value.imageData
                 )
             )
         }
