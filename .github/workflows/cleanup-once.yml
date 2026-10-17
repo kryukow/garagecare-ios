@@ -1,0 +1,28 @@
+name: One-time cleanup of old branches
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.repository == 'kryukow/garagecare-ios'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove old development branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for branch in \
+            feature/garagecare-1-4-public \
+            fix/engine-hours-ui \
+            fix/motohours-fields \
+            release/garagecare-1.4.2-build8; do
+            echo "Removing old branch: $branch"
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch"
+          done
