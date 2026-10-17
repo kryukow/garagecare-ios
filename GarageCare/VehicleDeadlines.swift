@@ -277,7 +277,7 @@ struct VehicleDeadlinesEditor: View {
         } catch {
             context.rollback()
             vehicle.huDueDate = oldHU
-            error = "Не удалось сохранить: \(error.localizedDescription)"
+            self.error = "Не удалось сохранить: \(error.localizedDescription)"
         }
     }
 }
