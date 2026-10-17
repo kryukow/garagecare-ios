@@ -14,9 +14,18 @@ final class MaintenanceFormTests: XCTestCase {
         app.textFields["Название"].typeText("Масло")
         interval.tap()
         interval.typeText("10000")
-        let done = app.buttons["Готово"]
-        XCTAssertTrue(done.waitForExistence(timeout: 5), "Кнопка закрытия клавиатуры должна быть доступна")
-        done.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Готово"].exists, "Дополнительная кнопка «Готово» над клавиатурой не нужна")
+        app.swipeUp()
+        let keyboardHidden = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: app.keyboards.firstMatch
+        )
+        XCTAssertEqual(
+            XCTWaiter.wait(for: [keyboardHidden], timeout: 5),
+            .completed,
+            "Прокрутка должна закрывать клавиатуру"
+        )
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Следующая работа при")).firstMatch.exists)
         XCTAssertTrue(app.buttons["Сохранить"].isEnabled)
         let shot = XCTAttachment(screenshot: app.screenshot())

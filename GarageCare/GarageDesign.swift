@@ -141,24 +141,11 @@ extension View {
 }
 
 
-/// Closes numeric keyboards both on scroll and with an explicit Done control.
+/// Dismisses the keyboard on scrolling without adding a keyboard toolbar.
 private struct GarageKeyboardDismissModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .scrollDismissesKeyboard(.immediately)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Готово") {
-                        UIApplication.shared.sendAction(
-                            #selector(UIResponder.resignFirstResponder),
-                            to: nil,
-                            from: nil,
-                            for: nil
-                        )
-                    }
-                }
-            }
     }
 }
 
