@@ -284,41 +284,38 @@ private struct VehicleHero: View {
                         endPoint: .bottom
                     )
 
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(vehicle.displayName.isEmpty ? "Автомобиль" : vehicle.displayName)
-                            .font(.title2.bold())
-                            .foregroundStyle(.white)
+                    HStack(alignment: .top, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(vehicle.displayName.isEmpty ? "Автомобиль" : vehicle.displayName)
+                                .font(.title2.bold())
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+
+                            HStack(spacing: 9) {
+                                if vehicle.year > 0 {
+                                    Text(String(vehicle.year))
+                                }
+                                if !vehicle.vin.isEmpty {
+                                    Text("VIN • \(String(vehicle.vin.suffix(6)))")
+                                }
+                            }
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.82))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
-
-                        HStack(spacing: 9) {
-                            if vehicle.year > 0 {
-                                Text(String(vehicle.year))
-                            }
-                            if !vehicle.vin.isEmpty {
-                                Text("VIN • \(String(vehicle.vin.suffix(6)))")
-                            }
                         }
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.82))
-                        .lineLimit(1)
-                    }
-                    .padding(.top, 16)
-                    .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                    VStack {
-                        Spacer(minLength: 0)
-                        HStack {
-                            Spacer()
-                            GarageStatusPill(
-                                title: "АКТИВЕН",
-                                color: .garageGreen,
-                                systemImage: "checkmark"
-                            )
-                        }
-                        .padding(.trailing, 16)
-                        .padding(.bottom, 16)
+                        GarageStatusPill(
+                            title: "АКТИВЕН",
+                            color: .garageGreen,
+                            systemImage: "checkmark"
+                        )
+                        .fixedSize(horizontal: true, vertical: false)
                     }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
                 .frame(height: 218)
                 .contentShape(Rectangle())
