@@ -62,6 +62,7 @@ final class MaintenanceTask {
     var lastEngineHours: Double = 0
     var lastDate: Date
     var notes: String
+    @Attribute(.externalStorage) var imageData: Data?
     var createdAt: Date
 
     init(
@@ -75,6 +76,7 @@ final class MaintenanceTask {
         lastEngineHours: Double = 0,
         lastDate: Date = .now,
         notes: String = "",
+        imageData: Data? = nil,
         createdAt: Date = .now
     ) {
         self.id = id
@@ -87,6 +89,7 @@ final class MaintenanceTask {
         self.lastEngineHours = lastEngineHours
         self.lastDate = lastDate
         self.notes = notes
+        self.imageData = imageData
         self.createdAt = createdAt
     }
 
@@ -155,6 +158,7 @@ final class ServiceRecord {
     var cost: Double
     var currency: String
     var notes: String
+    @Attribute(.externalStorage) var imageData: Data?
 
     init(
         id: UUID = UUID(),
@@ -166,7 +170,8 @@ final class ServiceRecord {
         date: Date = .now,
         cost: Double = 0,
         currency: String = "EUR",
-        notes: String = ""
+        notes: String = "",
+        imageData: Data? = nil
     ) {
         self.id = id
         self.vehicleID = vehicleID
@@ -178,6 +183,7 @@ final class ServiceRecord {
         self.cost = cost
         self.currency = currency
         self.notes = notes
+        self.imageData = imageData
     }
 }
 
