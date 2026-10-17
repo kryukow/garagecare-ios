@@ -352,6 +352,13 @@ struct TaskEditorView: View {
         return (km, months, hours, mileage, lastHours)
     }
 
+    // Ordinary maintenance uses mileage and optionally engine hours.
+    // Keep calendar intervals available only for HU/TÜV and existing calendar-based tasks.
+    private var showsCalendarOption: Bool {
+        (task?.intervalMonths ?? 0) > 0 ||
+        title.trimmingCharacters(in: .whitespacesAndNewlines).localizedCaseInsensitiveCompare("HU / TÜV") == .orderedSame
+    }
+
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         parsedIntervals != nil && !photoLoading
@@ -397,17 +404,19 @@ struct TaskEditorView: View {
                                 .keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                         }
                     }
-                    Toggle("Учитывать календарный срок", isOn: $useCalendar)
-                    if useCalendar {
-                        LabeledContent("Каждые, мес.") {
-                            TextField("Например, 24", text: $intervalMonths)
-                                .keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                    if showsCalendarOption {
+                        Toggle("Учитывать календарный срок", isOn: $useCalendar)
+                        if useCalendar {
+                            LabeledContent("Каждые, мес.") {
+                                TextField("Например, 24", text: $intervalMonths)
+                                    .keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                            }
                         }
                     }
                 } header: {
                     Text("Дополнительные условия")
                 } footer: {
-                    Text("Необязательно. Если включено несколько условий, сработает первое достигнутое. Для HU / TÜV можно оставить только календарный срок.")
+                    Text("Для обычного ТО используй километры и, если нужно, моточасы. Календарный срок доступен для HU / TÜV и ранее созданных календарных работ.")
                 }
 
                 Section("Последний раз выполнено") {
@@ -416,10 +425,12 @@ struct TaskEditorView: View {
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                     }
-                    LabeledContent("Моточасы, мч") {
-                        TextField("Не заданы", text: $lastEngineHours)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
+                    if useEngineHours || vehicle.engineHours > 0 || (task?.lastEngineHours ?? 0) > 0 {
+                        LabeledContent("Моточасы, мч") {
+                            TextField("Не заданы", text: $lastEngineHours)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                        }
                     }
                     DatePicker("Дата", selection: $lastDate, displayedComponents: .date)
                 }
@@ -547,10 +558,12 @@ struct CompleteTaskView: View {
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                     }
-                    LabeledContent("Моточасы, мч") {
-                        TextField("Не заданы", text: $engineHours)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
+                    if task.intervalEngineHours > 0 || vehicle.engineHours > 0 || task.lastEngineHours > 0 {
+                        LabeledContent("Моточасы, мч") {
+                            TextField("Не заданы", text: $engineHours)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                        }
                     }
                     DatePicker("Дата", selection: $date, displayedComponents: .date)
                 }

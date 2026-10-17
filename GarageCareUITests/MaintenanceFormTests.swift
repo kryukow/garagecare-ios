@@ -8,6 +8,7 @@ final class MaintenanceFormTests: XCTestCase {
         let interval = app.textFields["maintenance.intervalKm"]
         XCTAssertTrue(interval.waitForExistence(timeout: 10))
         XCTAssertFalse(app.textFields["Например, 24"].exists)
+        XCTAssertFalse(app.switches["Учитывать календарный срок"].exists)
         XCTAssertFalse(app.textFields["Например, 250"].exists)
         app.textFields["Название"].tap()
         app.textFields["Название"].typeText("Масло")

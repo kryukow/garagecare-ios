@@ -2,7 +2,7 @@ name: Собрать IPA
 
 on:
   push:
-    branches: [main, release/garagecare-1.4.2-build8]
+    branches: [main]
   workflow_dispatch:
 
 jobs:

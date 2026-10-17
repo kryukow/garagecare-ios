@@ -606,10 +606,12 @@ private struct UpdateMileageView: View {
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                     }
-                    LabeledContent("Моточасы") {
-                        TextField("Не заданы", text: $engineHours)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
+                    if vehicle.engineHours > 0 || tasks.contains(where: { $0.intervalEngineHours > 0 }) {
+                        LabeledContent("Моточасы, мч") {
+                            TextField("Не заданы", text: $engineHours)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                        }
                     }
                     DatePicker("Дата", selection: $date, displayedComponents: .date)
                 }
