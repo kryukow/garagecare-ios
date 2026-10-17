@@ -395,6 +395,7 @@ struct TaskEditorView: View {
             }
             .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
+            .garageKeyboardDismissal()
             .background(Color.garageBackground)
             .navigationTitle(task == nil ? "Новая работа" : "Изменить работу")
             .navigationBarTitleDisplayMode(.inline)
@@ -555,6 +556,7 @@ private struct CompleteTaskView: View {
                 }
             }
             .scrollContentBackground(.hidden)
+            .garageKeyboardDismissal()
             .background(Color.garageBackground)
             .navigationTitle("Работа выполнена")
             .navigationBarTitleDisplayMode(.inline)
