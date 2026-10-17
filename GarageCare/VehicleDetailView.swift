@@ -585,7 +585,6 @@ private struct UpdateMileageView: View {
             }
             .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
-            .garageKeyboardDismissal()
             .background(Color.garageBackground)
             .navigationTitle("Обновить показания")
             .navigationBarTitleDisplayMode(.inline)
@@ -703,8 +702,8 @@ private struct EditVehicleView: View {
                         .lineLimit(2...6)
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
-            .garageKeyboardDismissal()
             .background(Color.garageBackground)
             .navigationTitle("Автомобиль")
             .navigationBarTitleDisplayMode(.inline)
