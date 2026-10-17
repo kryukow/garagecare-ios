@@ -110,7 +110,360 @@ struct SettingsView: View {
                     }
 
                     if notificationsAllowed {
-                        Label("Уведомлен…4545 tokens truncated… uiViewController: UIDocumentPickerViewController, context: Context) {}
+                        Label("Уведомления разрешены", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(Color.garageGreen)
+                    }
+                }
+
+                Section {
+                    Button {
+                        prepareExport()
+                    } label: {
+                        Label("Создать копию в iCloud Drive", systemImage: "icloud.and.arrow.up")
+                    }
+
+                    Button {
+                        showingImporter = true
+                    } label: {
+                        Label("Восстановить из JSON", systemImage: "square.and.arrow.down")
+                    }
+                } header: {
+                    Text("Резервная копия JSON")
+                } footer: {
+                    Text("JSON сохраняет все автомобили, регламенты, историю обслуживания, пробег, заправки, расходы и фотографии. Для полного восстановления нужен только JSON-файл.")
+                }
+
+                Section {
+                    Button {
+                        prepareCSVExport()
+                    } label: {
+                        Label("Экспортировать историю CSV", systemImage: "tablecells")
+                    }
+                } header: {
+                    Text("Таблица истории CSV")
+                } footer: {
+                    Text("CSV нужен для Excel и Google Sheets. Это не резервная копия: повторно импортировать его после восстановления JSON не требуется.")
+                }
+
+                Section("Экспорт PDF") {
+                    Button {
+                        pdfDocument = PDFDocument(data: ServicePDFExporter.makePDF(vehicles: vehicles, records: records))
+                        showingPDFExporter = true
+                    } label: {
+                        Label("Сохранить историю с чеками в PDF", systemImage: "doc.richtext")
+                    }
+                }
+
+                Section("О приложении") {
+                    LabeledContent("Название", value: "Мой гараж")
+                    LabeledContent("Версия", value: appVersion)
+                }
+            }
+            .garageKeyboardDismiss()
+            .scrollContentBackground(.hidden)
+            .background(Color.garageBackground)
+            .navigationTitle("Настройки")
+            .task {
+                notificationsAllowed = await NotificationManager.shared.authorizationGranted()
+            }
+            .fileExporter(
+                isPresented: $showingExporter,
+                document: exportDocument,
+                contentType: .json,
+                defaultFilename: "GarageCare-backup.json"
+            ) { result in
+                switch result {
+                case .success:
+                    activeAlert = .message("Резервная копия сохранена.")
+                case .failure(let error):
+                    activeAlert = .message("Не удалось экспортировать: \(error.localizedDescription)")
+                }
+            }
+            .fileExporter(
+                isPresented: $showingCSVExporter,
+                document: csvDocument,
+                contentType: .commaSeparatedText,
+                defaultFilename: "GarageCare-history.csv"
+            ) { result in
+                if case .failure(let error) = result {
+                    activeAlert = .message("Не удалось экспортировать CSV: \(error.localizedDescription)")
+                }
+            }
+            .fileExporter(
+                isPresented: $showingPDFExporter,
+                document: pdfDocument,
+                contentType: .pdf,
+                defaultFilename: "GarageCare-service-history.pdf"
+            ) { result in
+                if case .failure(let error) = result {
+                    activeAlert = .message("Не удалось экспортировать PDF: \(error.localizedDescription)")
+                }
+            }
+            .sheet(isPresented: $showingImporter) {
+                BackupFilePicker { result in
+                    showingImporter = false
+
+                    // Сначала полностью закрываем системный проводник,
+                    // затем читаем файл и показываем подтверждение восстановления.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        switch result {
+                        case .success(let url):
+                            importFile(.success(url))
+                        case .failure(let error):
+                            importFile(.failure(error))
+                        }
+                    }
+                }
+                .ignoresSafeArea()
+            }
+            .alert(item: $activeAlert) { alert in
+                switch alert {
+                case .confirmImport:
+                    return Alert(
+                        title: Text("Восстановить резервную копию?"),
+                        message: Text("Текущие данные приложения будут заменены данными из файла."),
+                        primaryButton: .destructive(Text("Заменить данные")) {
+                            restoreImportedData()
+                        },
+                        secondaryButton: .cancel(Text("Отмена")) {
+                            importedPayload = nil
+                        }
+                    )
+
+                case .message(let text):
+                    return Alert(
+                        title: Text("Сообщение"),
+                        message: Text(text),
+                        dismissButton: .default(Text("OK"))
+                    )
+                }
+            }
+        }
+    }
+
+    private func prepareCSVExport() {
+        csvDocument = CSVDocument(
+            text: HistoryCSVExporter.makeCSV(
+                vehicles: vehicles,
+                records: records,
+                fuelEntries: fuelEntries
+            )
+        )
+        showingCSVExporter = true
+    }
+
+    private func prepareExport() {
+        let payload = BackupPayload(
+            version: 3,
+            exportedAt: .now,
+            vehicles: vehicles.map(VehicleSnapshot.init),
+            tasks: tasks.map(TaskSnapshot.init),
+            records: records.map(RecordSnapshot.init),
+            mileageEntries: mileageEntries.map(MileageSnapshot.init),
+            fuelEntries: fuelEntries.map(FuelSnapshot.init)
+        )
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+
+        do {
+            exportDocument = BackupDocument(data: try encoder.encode(payload))
+            showingExporter = true
+        } catch {
+            activeAlert = .message("Не удалось подготовить копию: \(error.localizedDescription)")
+        }
+    }
+
+    private func importFile(_ result: Result<URL, Error>) {
+        importedPayload = nil
+        do {
+            let url = try result.get()
+            try BackupImportFormat.validate(filename: url.lastPathComponent)
+            let accessing = url.startAccessingSecurityScopedResource()
+
+            defer {
+                if accessing {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
+
+            let data = try Data(contentsOf: url)
+
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+
+            let payload = try decoder.decode(BackupPayload.self, from: data)
+
+            try BackupValidator.validate(payload)
+            importedPayload = payload
+            activeAlert = .confirmImport
+        } catch let error as BackupValidationError {
+            activeAlert = .message(error.localizedDescription)
+        } catch is DecodingError {
+            activeAlert = .message("Выбранный JSON не является резервной копией «Мой гараж» или повреждён. Выбери исходный GarageCare-backup.json, сохранённый через настройки приложения.")
+        } catch {
+            activeAlert = .message("Не удалось прочитать резервную копию: \(error.localizedDescription)")
+        }
+    }
+
+    private func restoreImportedData() {
+        guard let payload = importedPayload else { return }
+
+        do {
+            try BackupValidator.validate(payload)
+        } catch {
+            activeAlert = .message("Некорректная копия: \(error.localizedDescription)")
+            importedPayload = nil
+            return
+        }
+
+        fuelEntries.forEach { modelContext.delete($0) }
+        mileageEntries.forEach { modelContext.delete($0) }
+        records.forEach { modelContext.delete($0) }
+        tasks.forEach { modelContext.delete($0) }
+        vehicles.forEach { modelContext.delete($0) }
+
+        payload.vehicles.forEach { value in
+            modelContext.insert(
+                Vehicle(
+                    id: value.id,
+                    make: value.make,
+                    model: value.model,
+                    year: value.year,
+                    vin: value.vin,
+                    currentMileage: value.currentMileage,
+                    engineHours: value.engineHours ?? 0,
+                    notes: value.notes,
+                    expectedFuelConsumption: value.expectedFuelConsumption ?? 0,
+                    imageData: value.imageData,
+                    createdAt: value.createdAt
+                )
+            )
+        }
+
+        payload.tasks.forEach { value in
+            modelContext.insert(
+                MaintenanceTask(
+                    id: value.id,
+                    vehicleID: value.vehicleID,
+                    title: value.title,
+                    intervalKm: value.intervalKm,
+                    intervalMonths: value.intervalMonths,
+                    intervalEngineHours: value.intervalEngineHours ?? 0,
+                    lastEngineHours: value.lastEngineHours ?? 0,
+                    lastMileage: value.lastMileage,
+                    lastDate: value.lastDate,
+                    notes: value.notes,
+                    imageData: value.imageData,
+                    createdAt: value.createdAt
+                )
+            )
+        }
+
+        payload.records.forEach { value in
+            modelContext.insert(
+                ServiceRecord(
+                    id: value.id,
+                    vehicleID: value.vehicleID,
+                    taskID: value.taskID,
+                    title: value.title,
+                    mileage: value.mileage,
+                    engineHours: value.engineHours ?? 0,
+                    date: value.date,
+                    cost: value.cost,
+                    currency: value.currency,
+                    notes: value.notes,
+                    parts: value.parts ?? "",
+                    receiptImageData: value.receiptImageData,
+                    imageData: value.imageData
+                )
+            )
+        }
+
+        payload.mileageEntries.forEach { value in
+            modelContext.insert(
+                MileageEntry(
+                    id: value.id,
+                    vehicleID: value.vehicleID,
+                    mileage: value.mileage,
+                    engineHours: value.engineHours ?? 0,
+                    date: value.date
+                )
+            )
+        }
+
+        (payload.fuelEntries ?? []).forEach { value in
+            modelContext.insert(
+                FuelEntry(
+                    id: value.id,
+                    vehicleID: value.vehicleID,
+                    date: value.date,
+                    mileage: value.mileage,
+                    liters: value.liters,
+                    amount: value.amount,
+                    currency: value.currency,
+                    isFullTank: value.isFullTank,
+                    fuelType: value.fuelType ?? "Бензин",
+                    notes: value.notes
+                )
+            )
+        }
+
+        do {
+            try modelContext.save()
+            importedPayload = nil
+            refreshAllNotifications()
+            activeAlert = .message("Данные восстановлены.")
+        } catch {
+            modelContext.rollback()
+            activeAlert = .message("Не удалось восстановить данные: \(error.localizedDescription)")
+        }
+    }
+
+    private func refreshAllNotifications() {
+        for vehicle in vehicles {
+            NotificationManager.shared.refresh(
+                vehicle: vehicle,
+                tasks: tasks.filter { $0.vehicleID == vehicle.id },
+                warningKm: warningKm,
+                warningDays: warningDays
+            )
+
+            let lastUpdate = mileageEntries
+                .filter { $0.vehicleID == vehicle.id }
+                .map(\.date)
+                .max() ?? .now
+
+            NotificationManager.shared.scheduleMileageEntryReminder(
+                vehicle: vehicle,
+                lastUpdate: lastUpdate,
+                afterDays: mileageReminderDays
+            )
+        }
+    }
+}
+
+
+private struct BackupFilePicker: UIViewControllerRepresentable {
+    let completion: (Result<URL, Error>) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(completion: completion)
+    }
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(
+            forOpeningContentTypes: [.json],
+            asCopy: true
+        )
+        picker.delegate = context.coordinator
+        picker.allowsMultipleSelection = false
+        picker.shouldShowFileExtensions = true
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
 
     final class Coordinator: NSObject, UIDocumentPickerDelegate {
         private let completion: (Result<URL, Error>) -> Void
