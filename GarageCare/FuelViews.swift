@@ -544,6 +544,7 @@ private struct FuelEntryEditor: View {
                     }
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle("Новая заправка")
