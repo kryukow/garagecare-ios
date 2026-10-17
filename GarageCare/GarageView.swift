@@ -453,6 +453,7 @@ private struct AddVehicleView: View {
                         .lineLimit(2...5)
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle("Новый автомобиль")
