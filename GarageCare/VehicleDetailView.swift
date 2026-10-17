@@ -601,10 +601,16 @@ private struct UpdateMileageView: View {
         NavigationStack {
             Form {
                 Section("Новый пробег") {
-                    TextField("Километры", text: $mileage)
-                        .keyboardType(.numberPad)
-                    TextField("Моточасы двигателя", text: $engineHours)
-                        .keyboardType(.decimalPad)
+                    LabeledContent("Пробег, км") {
+                        TextField("Пробег", text: $mileage)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("Моточасы") {
+                        TextField("Не заданы", text: $engineHours)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                     DatePicker("Дата", selection: $date, displayedComponents: .date)
                 }
 
@@ -615,6 +621,7 @@ private struct UpdateMileageView: View {
                     }
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle("Обновить пробег")
@@ -629,7 +636,7 @@ private struct UpdateMileageView: View {
             }
             .onAppear {
                 mileage = String(vehicle.currentMileage)
-                engineHours = String(vehicle.engineHours)
+                engineHours = vehicle.engineHours > 0 ? String(format: "%.1f", vehicle.engineHours) : ""
             }
         }
     }
@@ -644,14 +651,15 @@ private struct UpdateMileageView: View {
             return
         }
 
-        let hours = Double(engineHours.replacingOccurrences(of: ",", with: ".")) ?? -1
+        let normalizedHours = engineHours.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+        let hours = normalizedHours.isEmpty ? vehicle.engineHours : (Double(normalizedHours) ?? -1)
         guard hours.isFinite, hours >= vehicle.engineHours else {
             errorMessage = "Моточасы не могут уменьшаться."
             return
         }
         vehicle.currentMileage = value
         vehicle.engineHours = hours
-        modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: value, date: date))
+        modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: value, engineHours: hours, date: date))
         do { try modelContext.save() }
         catch {
             modelContext.rollback()
@@ -679,6 +687,7 @@ private struct EditVehicleView: View {
     @Bindable var vehicle: Vehicle
     @State private var photoItem: PhotosPickerItem?
     @State private var expectedConsumption = ""
+    @State private var engineHours = ""
     @State private var saveError: String?
 
     var body: some View {
@@ -691,6 +700,11 @@ private struct EditVehicleView: View {
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                     Stepper("Год: \(vehicle.year)", value: $vehicle.year, in: 1900...2100)
+                    LabeledContent("Моточасы") {
+                        TextField("Не заданы", text: $engineHours)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
 
                 Section {
@@ -719,6 +733,7 @@ private struct EditVehicleView: View {
                 }
                 if let saveError { Text(saveError).foregroundStyle(.red) }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle("Автомобиль")
@@ -728,6 +743,13 @@ private struct EditVehicleView: View {
                     Button("Готово") {
                         let normalized = expectedConsumption.replacingOccurrences(of: ",", with: ".")
                         vehicle.expectedFuelConsumption = Double(normalized) ?? 0
+                        let normalizedHours = engineHours.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+                        let hours = normalizedHours.isEmpty ? vehicle.engineHours : (Double(normalizedHours) ?? -1)
+                        guard hours.isFinite, hours >= vehicle.engineHours else {
+                            saveError = "Моточасы не могут уменьшаться или быть отрицательными."
+                            return
+                        }
+                        vehicle.engineHours = hours
                         do { try modelContext.save(); dismiss() }
                         catch { saveError = error.localizedDescription }
                     }
@@ -737,6 +759,7 @@ private struct EditVehicleView: View {
                 expectedConsumption = vehicle.expectedFuelConsumption > 0
                     ? String(format: "%.1f", vehicle.expectedFuelConsumption)
                     : ""
+                engineHours = vehicle.engineHours > 0 ? String(format: "%.1f", vehicle.engineHours) : ""
             }
             .onChange(of: photoItem) { _, newItem in
                 Task {
