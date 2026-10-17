@@ -558,7 +558,7 @@ private struct CompleteTaskView: View {
             vehicle: vehicle,
             tasks: [task],
             warningKm: warningKm,
-            warningDays: warningDays
+            warningEngineHours: warningEngineHours
         )
         if updatedVehicleMileage || updatedEngineHours {
             NotificationManager.shared.scheduleMileageEntryReminder(
