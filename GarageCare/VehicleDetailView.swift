@@ -347,18 +347,23 @@ private struct TaskCard: View {
     private var state: DueState {
         task.state(
             currentMileage: currentMileage,
+            currentEngineHours: currentEngineHours,
             warningKm: warningKm,
             warningEngineHours: warningEngineHours
         )
     }
 
     private var progress: Double {
-        task.displayProgress(currentMileage: currentMileage)
+        task.displayProgress(
+            currentMileage: currentMileage,
+            currentEngineHours: currentEngineHours
+        )
     }
 
     private var statusColor: Color {
         task.displayColor(
             currentMileage: currentMileage,
+            currentEngineHours: currentEngineHours,
             warningKm: warningKm,
             warningEngineHours: warningEngineHours
         )
@@ -449,18 +454,23 @@ private struct TaskListRow: View {
     private var state: DueState {
         task.state(
             currentMileage: currentMileage,
+            currentEngineHours: currentEngineHours,
             warningKm: warningKm,
             warningEngineHours: warningEngineHours
         )
     }
 
     private var progress: Double {
-        task.displayProgress(currentMileage: currentMileage)
+        task.displayProgress(
+            currentMileage: currentMileage,
+            currentEngineHours: currentEngineHours
+        )
     }
 
     private var color: Color {
         task.displayColor(
             currentMileage: currentMileage,
+            currentEngineHours: currentEngineHours,
             warningKm: warningKm,
             warningEngineHours: warningEngineHours
         )
