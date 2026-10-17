@@ -96,6 +96,15 @@ private struct HistoryCard: View {
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
 
+                if record.engineHours > 0 {
+                    Label(
+                        Formatters.engineHours(record.engineHours),
+                        systemImage: "gauge.with.dots.needle.50percent"
+                    )
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                }
+
                 if let vehicle {
                     Label(vehicle.displayName, systemImage: "car.side.fill")
                         .font(.caption.weight(.medium))
