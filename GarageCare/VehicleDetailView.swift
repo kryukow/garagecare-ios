@@ -338,8 +338,9 @@ private struct VehicleHero: View {
 private struct TaskCard: View {
     let task: MaintenanceTask
     let currentMileage: Int
+    let currentEngineHours: Double
     let warningKm: Int
-    let warningDays: Int
+    let warningEngineHours: Double
 
     private var state: DueState {
         task.state(
@@ -439,8 +440,9 @@ private struct TaskCard: View {
 private struct TaskListRow: View {
     let task: MaintenanceTask
     let currentMileage: Int
+    let currentEngineHours: Double
     let warningKm: Int
-    let warningDays: Int
+    let warningEngineHours: Double
 
     private var state: DueState {
         task.state(
