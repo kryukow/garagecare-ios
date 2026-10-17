@@ -99,24 +99,20 @@ struct SettingsView: View {
                 }
 
                 Section("Уведомления") {
-                    if !notificationsAllowed {
-                        Button {
-                            Task {
-                                notificationsAllowed = await NotificationManager.shared.requestAuthorization()
-
-                            }
-
-                    if notificationsAllowed {
-                                refreshAllNotifications()
-                            }
-                        }
-                    } label: {
-                        Label("Разрешить уведомления", systemImage: "bell.badge")
-                    }
-
                     if notificationsAllowed {
                         Label("Уведомления разрешены", systemImage: "checkmark.circle.fill")
                             .foregroundStyle(Color.garageGreen)
+                    } else {
+                        Button {
+                            Task {
+                                notificationsAllowed = await NotificationManager.shared.requestAuthorization()
+                                if notificationsAllowed {
+                                    refreshAllNotifications()
+                                }
+                            }
+                        } label: {
+                            Label("Разрешить уведомления", systemImage: "bell.badge")
+                        }
                     }
                 }
 
