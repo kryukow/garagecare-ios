@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct GarageProgressBar: View {
     let progress: Double
@@ -99,31 +98,21 @@ struct GarageScreenBackground: View {
 }
 
 extension MaintenanceTask {
-    func displayProgress(currentMileage: Int, currentEngineHours: Double) -> Double {
-        let value = progress(
-            currentMileage: currentMileage,
-            currentEngineHours: currentEngineHours
-        )
+    func displayProgress(currentMileage: Int, currentEngineHours: Double = 0) -> Double {
+        let value = progress(currentMileage: currentMileage, currentEngineHours: currentEngineHours)
         return value.isFinite ? min(max(value, 0), 1) : 0
     }
 
-    func displayColor(
-        currentMileage: Int,
-        currentEngineHours: Double,
-        warningKm: Int,
-        warningEngineHours: Double
-    ) -> Color {
+    func displayColor(currentMileage: Int, warningKm: Int, warningDays: Int, currentEngineHours: Double = 0, warningEngineHours: Double = 10) -> Color {
         let dueState = state(
             currentMileage: currentMileage,
-            currentEngineHours: currentEngineHours,
             warningKm: warningKm,
+            warningDays: warningDays,
+            currentEngineHours: currentEngineHours,
             warningEngineHours: warningEngineHours
         )
         return Color.maintenanceStatus(
-            progress: displayProgress(
-                currentMileage: currentMileage,
-                currentEngineHours: currentEngineHours
-            ),
+            progress: displayProgress(currentMileage: currentMileage, currentEngineHours: currentEngineHours),
             state: dueState
         )
     }
@@ -152,6 +141,7 @@ extension View {
 }
 
 
+/// Closes numeric keyboards both on scroll and with an explicit Done control.
 private struct GarageKeyboardDismissModifier: ViewModifier {
     func body(content: Content) -> some View {
         content

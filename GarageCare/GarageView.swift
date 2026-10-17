@@ -8,14 +8,15 @@ struct GarageView: View {
     @Query(sort: \MaintenanceTask.createdAt) private var tasks: [MaintenanceTask]
 
     @AppStorage("warningKm") private var warningKm = 1_000
-    @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
+    @AppStorage("warningDays") private var warningDays = 7
 
     @State private var showingAddVehicle = false
     @State private var vehicleToDelete: Vehicle?
+    @State private var saveError: String?
 
     private var upcomingWorks: [UpcomingWork] {
         tasks.compactMap { task in
-            guard task.intervalKm > 0 || task.intervalEngineHours > 0,
+            guard task.intervalKm > 0 || task.intervalMonths > 0 || task.intervalEngineHours > 0,
                   let vehicle = vehicles.first(where: { $0.id == task.vehicleID }) else {
                 return nil
             }
@@ -24,28 +25,23 @@ struct GarageView: View {
         .sorted { lhs, rhs in
             let lhsState = lhs.task.state(
                 currentMileage: lhs.vehicle.currentMileage,
-                currentEngineHours: lhs.vehicle.currentEngineHours,
                 warningKm: warningKm,
-                warningEngineHours: warningEngineHours
+                warningDays: warningDays,
+                currentEngineHours: lhs.vehicle.engineHours
             )
             let rhsState = rhs.task.state(
                 currentMileage: rhs.vehicle.currentMileage,
-                currentEngineHours: rhs.vehicle.currentEngineHours,
                 warningKm: warningKm,
-                warningEngineHours: warningEngineHours
+                warningDays: warningDays,
+                currentEngineHours: rhs.vehicle.engineHours
             )
 
             if lhsState.sortPriority != rhsState.sortPriority {
                 return lhsState.sortPriority < rhsState.sortPriority
             }
 
-            return lhs.task.displayProgress(
-                currentMileage: lhs.vehicle.currentMileage,
-                currentEngineHours: lhs.vehicle.currentEngineHours
-            ) > rhs.task.displayProgress(
-                currentMileage: rhs.vehicle.currentMileage,
-                currentEngineHours: rhs.vehicle.currentEngineHours
-            )
+            return lhs.task.displayProgress(currentMileage: lhs.vehicle.currentMileage, currentEngineHours: lhs.vehicle.engineHours)
+                > rhs.task.displayProgress(currentMileage: rhs.vehicle.currentMileage, currentEngineHours: rhs.vehicle.engineHours)
         }
         .prefix(4)
         .map { $0 }
@@ -144,7 +140,7 @@ struct GarageView: View {
                                         UpcomingWorkRow(
                                             item: item,
                                             warningKm: warningKm,
-                                            warningEngineHours: warningEngineHours
+                                            warningDays: warningDays
                                         )
                                     }
                                     .buttonStyle(.plain)
@@ -188,6 +184,11 @@ struct GarageView: View {
             } message: {
                 Text("Будут удалены все связанные работы, пробег и заправки.")
             }
+            .alert("Ошибка удаления", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+                Button("OK", role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "")
+            }
         }
     }
 
@@ -206,15 +207,22 @@ struct GarageView: View {
             predicate: #Predicate { $0.vehicleID == vehicleID }
         )
 
-        let vehicleTasks = (try? modelContext.fetch(taskDescriptor)) ?? []
-        NotificationManager.shared.cancelNotifications(for: vehicle, tasks: vehicleTasks)
-
-        vehicleTasks.forEach { modelContext.delete($0) }
-        (try? modelContext.fetch(recordDescriptor))?.forEach { modelContext.delete($0) }
-        (try? modelContext.fetch(mileageDescriptor))?.forEach { modelContext.delete($0) }
-        (try? modelContext.fetch(fuelDescriptor))?.forEach { modelContext.delete($0) }
-        modelContext.delete(vehicle)
-        try? modelContext.save()
+        do {
+            let vehicleTasks = try modelContext.fetch(taskDescriptor)
+            let vehicleRecords = try modelContext.fetch(recordDescriptor)
+            let vehicleMileage = try modelContext.fetch(mileageDescriptor)
+            let vehicleFuel = try modelContext.fetch(fuelDescriptor)
+            vehicleTasks.forEach { modelContext.delete($0) }
+            vehicleRecords.forEach { modelContext.delete($0) }
+            vehicleMileage.forEach { modelContext.delete($0) }
+            vehicleFuel.forEach { modelContext.delete($0) }
+            modelContext.delete(vehicle)
+            try modelContext.save()
+            NotificationManager.shared.cancelNotifications(for: vehicle, tasks: vehicleTasks)
+        } catch {
+            modelContext.rollback()
+            saveError = error.localizedDescription
+        }
     }
 }
 
@@ -301,23 +309,23 @@ private struct UpcomingWork: Identifiable {
 private struct UpcomingWorkRow: View {
     let item: UpcomingWork
     let warningKm: Int
-    let warningEngineHours: Double
+    let warningDays: Int
 
     private var state: DueState {
         item.task.state(
             currentMileage: item.vehicle.currentMileage,
-            currentEngineHours: item.vehicle.currentEngineHours,
             warningKm: warningKm,
-            warningEngineHours: warningEngineHours
+            warningDays: warningDays,
+            currentEngineHours: item.vehicle.engineHours
         )
     }
 
     private var color: Color {
         item.task.displayColor(
             currentMileage: item.vehicle.currentMileage,
-            currentEngineHours: item.vehicle.currentEngineHours,
             warningKm: warningKm,
-            warningEngineHours: warningEngineHours
+            warningDays: warningDays,
+            currentEngineHours: item.vehicle.engineHours
         )
     }
 
@@ -347,10 +355,13 @@ private struct UpcomingWorkRow: View {
                         )
                     }
 
-                    if let hours = item.task.engineHoursRemaining(currentEngineHours: item.vehicle.currentEngineHours) {
+                    if let hours = item.task.engineHoursRemaining(currentEngineHours: item.vehicle.engineHours) {
+                        Label(String(format: hours >= 0 ? "%.1f мч" : "−%.1f мч", abs(hours)), systemImage: "gauge.with.dots.needle.50percent")
+                    }
+                    if let days = item.task.daysRemaining() {
                         Label(
-                            hours >= 0 ? Formatters.engineHours(hours) : "−\(Formatters.engineHours(abs(hours)))",
-                            systemImage: "gauge.with.dots.needle.50percent"
+                            days >= 0 ? "\(days) дн." : "−\(abs(days)) дн.",
+                            systemImage: "calendar"
                         )
                     }
                 }
@@ -395,6 +406,7 @@ private struct AddVehicleView: View {
     @State private var imageData: Data?
     @State private var photoItem: PhotosPickerItem?
     @State private var addTemplates = true
+    @State private var errorMessage: String?
 
     private var canSave: Bool {
         !make.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
@@ -415,8 +427,11 @@ private struct AddVehicleView: View {
                         .autocorrectionDisabled()
                     TextField("Текущий пробег, км", text: $mileage)
                         .keyboardType(.numberPad)
-                    TextField("Текущие моточасы (необязательно)", text: $engineHours)
-                        .keyboardType(.decimalPad)
+                    LabeledContent("Моточасы") {
+                        TextField("Не заданы", text: $engineHours)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
 
                 Section {
@@ -452,6 +467,7 @@ private struct AddVehicleView: View {
                     TextField("Комплектация, двигатель и другое", text: $notes, axis: .vertical)
                         .lineLimit(2...5)
                 }
+                if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             }
             .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
@@ -478,27 +494,24 @@ private struct AddVehicleView: View {
     private func save() {
         guard let mileageValue = Int(mileage.filter(\.isNumber)) else { return }
         let normalizedExpected = expectedConsumption.replacingOccurrences(of: ",", with: ".")
-        let normalizedHours = engineHours.replacingOccurrences(of: ",", with: ".")
-        let engineHoursValue = Double(normalizedHours) ?? 0
+        let normalizedHours = engineHours.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+        guard let hoursValue = normalizedHours.isEmpty ? 0.0 : Double(normalizedHours), hoursValue.isFinite, hoursValue >= 0 else {
+            errorMessage = "Проверь моточасы двигателя."
+            return
+        }
         let vehicle = Vehicle(
             make: make.trimmingCharacters(in: .whitespacesAndNewlines),
             model: model.trimmingCharacters(in: .whitespacesAndNewlines),
             year: Int(year.filter(\.isNumber)) ?? Calendar.current.component(.year, from: .now),
             vin: vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
             currentMileage: mileageValue,
-            currentEngineHours: engineHoursValue,
+            engineHours: hoursValue,
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             expectedFuelConsumption: Double(normalizedExpected) ?? 0,
             imageData: imageData
         )
         modelContext.insert(vehicle)
-        modelContext.insert(
-            MileageEntry(
-                vehicleID: vehicle.id,
-                mileage: mileageValue,
-                engineHours: engineHoursValue
-            )
-        )
+        modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: mileageValue, engineHours: hoursValue))
 
         if addTemplates {
             [
@@ -507,19 +520,21 @@ private struct AddVehicleView: View {
                 "Салонный фильтр",
                 "Свечи зажигания",
                 "Тормозная жидкость",
-                "Ремень / цепь ГРМ"
+                "Ремень / цепь ГРМ",
+                "HU / TÜV"
             ].forEach { title in
                 modelContext.insert(MaintenanceTask(
                     vehicleID: vehicle.id,
                     title: title,
-                    lastMileage: mileageValue,
-                    lastEngineHours: engineHoursValue
+                    intervalMonths: title == "HU / TÜV" ? 24 : 0,
+                    lastEngineHours: hoursValue,
+                    lastMileage: mileageValue
                 ))
             }
         }
 
-        try? modelContext.save()
-        dismiss()
+        do { try modelContext.save(); dismiss() }
+        catch { modelContext.rollback(); errorMessage = "Не удалось сохранить автомобиль: \(error.localizedDescription)" }
     }
 }
 

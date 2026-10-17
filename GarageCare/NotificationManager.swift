@@ -29,21 +29,17 @@ final class NotificationManager {
         vehicle: Vehicle,
         tasks: [MaintenanceTask],
         warningKm: Int,
-        warningEngineHours: Double
+        warningDays: Int,
+        warningEngineHours: Double = 10
     ) {
         let center = UNUserNotificationCenter.current()
-        let identifiers = tasks.flatMap {
-            ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)", "hours-\($0.id.uuidString)"]
-        }
+        let identifiers = tasks.flatMap { ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)", "hours-\($0.id.uuidString)"] }
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
 
         for task in tasks {
+            scheduleDateNotification(vehicle: vehicle, task: task, warningDays: warningDays)
             scheduleMileageNotification(vehicle: vehicle, task: task, warningKm: warningKm)
-            scheduleEngineHoursNotification(
-                vehicle: vehicle,
-                task: task,
-                warningEngineHours: warningEngineHours
-            )
+            scheduleEngineHoursNotification(vehicle: vehicle, task: task, warningEngineHours: warningEngineHours)
         }
     }
 
@@ -89,36 +85,38 @@ final class NotificationManager {
     func cancelNotifications(for vehicle: Vehicle, tasks: [MaintenanceTask]) {
         let center = UNUserNotificationCenter.current()
         let identifiers =
-            tasks.flatMap {
-                ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)", "hours-\($0.id.uuidString)"]
-            } +
+            tasks.flatMap { ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)", "hours-\($0.id.uuidString)"] } +
             ["mileage-entry-\(vehicle.id.uuidString)"]
 
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
         center.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 
-    private func scheduleEngineHoursNotification(
-        vehicle: Vehicle,
-        task: MaintenanceTask,
-        warningEngineHours: Double
-    ) {
-        guard let remaining = task.engineHoursRemaining(currentEngineHours: vehicle.currentEngineHours),
-              remaining <= warningEngineHours else {
-            return
-        }
+    private func scheduleDateNotification(vehicle: Vehicle, task: MaintenanceTask, warningDays: Int) {
+        guard let dueDate = task.nextDate() else { return }
+        let notificationDate = Calendar.current.date(byAdding: .day, value: -warningDays, to: dueDate) ?? dueDate
 
         let content = UNMutableNotificationContent()
         content.title = task.title
-        content.body = remaining < 0
-            ? "Для \(vehicle.displayName) работа просрочена на \(Formatters.engineHours(abs(remaining)))."
-            : "Для \(vehicle.displayName) осталось \(Formatters.engineHours(remaining))."
+        content.body = "Для \(vehicle.displayName) приближается регламентная работа."
         content.sound = .default
 
+        if notificationDate <= .now {
+            let request = UNNotificationRequest(
+                identifier: "date-\(task.id.uuidString)",
+                content: content,
+                trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+            )
+            UNUserNotificationCenter.current().add(request)
+            return
+        }
+
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: notificationDate)
+        components.hour = 10
         let request = UNNotificationRequest(
-            identifier: "hours-\(task.id.uuidString)",
+            identifier: "date-\(task.id.uuidString)",
             content: content,
-            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+            trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
         )
         UNUserNotificationCenter.current().add(request)
     }
@@ -142,4 +140,21 @@ final class NotificationManager {
         )
         UNUserNotificationCenter.current().add(request)
     }
+    private func scheduleEngineHoursNotification(vehicle: Vehicle, task: MaintenanceTask, warningEngineHours: Double) {
+        guard let remaining = task.engineHoursRemaining(currentEngineHours: vehicle.engineHours),
+              remaining <= warningEngineHours else { return }
+        let content = UNMutableNotificationContent()
+        content.title = task.title
+        content.body = remaining < 0
+            ? "Для \(vehicle.displayName) работа просрочена на \(String(format: "%.1f", abs(remaining))) моточасов."
+            : "Для \(vehicle.displayName) осталось \(String(format: "%.1f", remaining)) моточасов."
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "hours-\(task.id.uuidString)",
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
 }

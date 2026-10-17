@@ -19,7 +19,7 @@ struct VehicleSnapshot: Codable {
     let year: Int
     let vin: String
     let currentMileage: Int
-    let currentEngineHours: Double?
+    let engineHours: Double?
     let notes: String
     let expectedFuelConsumption: Double?
     let imageData: Data?
@@ -32,7 +32,7 @@ struct VehicleSnapshot: Codable {
         year = value.year
         vin = value.vin
         currentMileage = value.currentMileage
-        currentEngineHours = value.currentEngineHours
+        engineHours = value.engineHours
         notes = value.notes
         expectedFuelConsumption = value.expectedFuelConsumption
         imageData = value.imageData
@@ -47,8 +47,8 @@ struct TaskSnapshot: Codable {
     let intervalKm: Int
     let intervalMonths: Int
     let intervalEngineHours: Double?
-    let lastMileage: Int
     let lastEngineHours: Double?
+    let lastMileage: Int
     let lastDate: Date
     let notes: String
     let imageData: Data?
@@ -61,8 +61,8 @@ struct TaskSnapshot: Codable {
         intervalKm = value.intervalKm
         intervalMonths = value.intervalMonths
         intervalEngineHours = value.intervalEngineHours
-        lastMileage = value.lastMileage
         lastEngineHours = value.lastEngineHours
+        lastMileage = value.lastMileage
         lastDate = value.lastDate
         notes = value.notes
         imageData = value.imageData
@@ -81,6 +81,8 @@ struct RecordSnapshot: Codable {
     let cost: Double
     let currency: String
     let notes: String
+    let parts: String?
+    let receiptImageData: Data?
     let imageData: Data?
 
     init(_ value: ServiceRecord) {
@@ -94,6 +96,8 @@ struct RecordSnapshot: Codable {
         cost = value.cost
         currency = value.currency
         notes = value.notes
+        parts = value.parts
+        receiptImageData = value.receiptImageData
         imageData = value.imageData
     }
 }
@@ -124,6 +128,7 @@ struct FuelSnapshot: Codable {
     let amount: Double
     let currency: String
     let isFullTank: Bool
+    let fuelType: String?
     let notes: String
 
     init(_ value: FuelEntry) {
@@ -135,6 +140,7 @@ struct FuelSnapshot: Codable {
         amount = value.amount
         currency = value.currency
         isFullTank = value.isFullTank
+        fuelType = value.fuelType
         notes = value.notes
     }
 }
@@ -185,7 +191,7 @@ enum HistoryCSVExporter {
     ) -> String {
         let vehicleNames = Dictionary(uniqueKeysWithValues: vehicles.map { ($0.id, $0.displayName) })
         var rows = [
-            ["Тип", "Автомобиль", "Дата", "Пробег", "Моточасы", "Описание", "Литры", "Сумма", "Валюта", "Заметка"]
+            ["Тип", "Автомобиль", "Дата", "Пробег", "Описание", "Литры", "Сумма", "Валюта", "Заметка", "Запчасти"]
         ]
 
         for record in records.sorted(by: { $0.date < $1.date }) {
@@ -194,12 +200,12 @@ enum HistoryCSVExporter {
                 vehicleNames[record.vehicleID] ?? "Автомобиль",
                 isoDate(record.date),
                 String(record.mileage),
-                record.engineHours > 0 ? decimal(record.engineHours) : "",
                 record.title,
                 "",
                 record.cost > 0 ? decimal(record.cost) : "",
                 record.cost > 0 ? record.currency : "",
-                record.notes
+                record.notes,
+                record.parts
             ])
         }
 
@@ -209,12 +215,12 @@ enum HistoryCSVExporter {
                 vehicleNames[entry.vehicleID] ?? "Автомобиль",
                 isoDate(entry.date),
                 String(entry.mileage),
-                "",
                 entry.isFullTank ? "До полного" : "Долив",
                 decimal(entry.liters),
                 entry.amount > 0 ? decimal(entry.amount) : "",
                 entry.amount > 0 ? entry.currency : "",
-                entry.notes
+                entry.notes,
+                ""
             ])
         }
 

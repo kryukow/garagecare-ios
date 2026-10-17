@@ -23,6 +23,9 @@ struct FuelStatisticsView: View {
 
     @State private var selectedVehicleID: UUID?
     @State private var showingAddFuel = false
+    @State private var selectedFuelForEdit: FuelEntry?
+    @State private var selectedFuelType = ""
+    @State private var saveError: String?
 
     private var selectedVehicle: Vehicle? {
         if let selectedVehicleID,
@@ -39,12 +42,24 @@ struct FuelStatisticsView: View {
             .sorted { $0.date > $1.date }
     }
 
+    private var fuelTypes: [String] {
+        Array(Set(selectedEntries.map(\.fuelType))).sorted()
+    }
+
+    private var activeFuelType: String {
+        fuelTypes.contains(selectedFuelType) ? selectedFuelType : (fuelTypes.first ?? "Бензин")
+    }
+
     private var consumptionPoints: [FuelConsumptionPoint] {
         FuelStatisticsCalculator.consumptionPoints(entries: selectedEntries)
+            .filter { $0.fuelType == activeFuelType }
     }
 
     private var averageConsumption: Double? {
-        FuelStatisticsCalculator.averageConsumption(entries: selectedEntries)
+        let points = consumptionPoints
+        let distance = points.reduce(0) { $0 + $1.distance }
+        guard distance > 0 else { return nil }
+        return points.reduce(0.0) { $0 + $1.liters } / Double(distance) * 100
     }
 
     private var spendByCurrency: [String: Double] {
@@ -96,6 +111,18 @@ struct FuelStatisticsView: View {
                     emptyVehicleState
                 } else {
                     vehicleHeader
+                    if fuelTypes.count > 1 {
+                        Picker("Тип топлива для расчёта", selection: $selectedFuelType) {
+                            ForEach(fuelTypes, id: \.self) { type in
+                                Text(type).tag(type)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .onAppear { selectedFuelType = activeFuelType }
+                        Text("Расход не смешивается между видами топлива. Расчёт возможен только для последовательных заправок одним видом топлива.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     summaryGrid
 
                     if !consumptionPoints.isEmpty {
@@ -136,6 +163,16 @@ struct FuelStatisticsView: View {
             if let selectedVehicle {
                 FuelEntryEditor(vehicle: selectedVehicle)
             }
+        }
+        .sheet(item: $selectedFuelForEdit) { entry in
+            if let vehicle = vehicles.first(where: { $0.id == entry.vehicleID }) {
+                FuelEntryEditor(vehicle: vehicle, entry: entry)
+            }
+        }
+        .alert("Ошибка записи", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+            Button("OK", role: .cancel) { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
         }
     }
 
@@ -377,9 +414,13 @@ struct FuelStatisticsView: View {
                 ForEach(Array(selectedEntries.prefix(8).enumerated()), id: \.element.id) { index, entry in
                     FuelEntryRow(entry: entry)
                         .contextMenu {
+                            Button("Изменить", systemImage: "pencil") {
+                                selectedFuelForEdit = entry
+                            }
                             Button("Удалить", role: .destructive) {
                                 modelContext.delete(entry)
-                                try? modelContext.save()
+                                do { try modelContext.save() }
+                                catch { modelContext.rollback(); saveError = error.localizedDescription }
                             }
                         }
 
@@ -465,7 +506,7 @@ private struct FuelEntryRow: View {
                     }
                 }
 
-                Text("\(Formatters.mileage(entry.mileage)) · \(Formatters.russianDate(entry.date))")
+                Text("\(entry.fuelType) · \(Formatters.mileage(entry.mileage)) · \(Formatters.russianDate(entry.date))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -492,6 +533,7 @@ private struct FuelEntryEditor: View {
     @Environment(\.modelContext) private var modelContext
 
     let vehicle: Vehicle
+    let entry: FuelEntry?
 
     @State private var date = Date.now
     @State private var mileage: String
@@ -499,12 +541,21 @@ private struct FuelEntryEditor: View {
     @State private var amount = ""
     @State private var currency = "EUR"
     @State private var isFullTank = true
+    @State private var fuelType = "Бензин"
     @State private var notes = ""
     @State private var errorMessage: String?
 
-    init(vehicle: Vehicle) {
+    init(vehicle: Vehicle, entry: FuelEntry? = nil) {
         self.vehicle = vehicle
-        _mileage = State(initialValue: String(vehicle.currentMileage))
+        self.entry = entry
+        _date = State(initialValue: entry?.date ?? .now)
+        _mileage = State(initialValue: String(entry?.mileage ?? vehicle.currentMileage))
+        _liters = State(initialValue: entry.map { String($0.liters) } ?? "")
+        _amount = State(initialValue: entry.map { String($0.amount) } ?? "")
+        _currency = State(initialValue: entry?.currency ?? "EUR")
+        _isFullTank = State(initialValue: entry?.isFullTank ?? true)
+        _fuelType = State(initialValue: entry?.fuelType ?? "Бензин")
+        _notes = State(initialValue: entry?.notes ?? "")
     }
 
     var body: some View {
@@ -515,6 +566,11 @@ private struct FuelEntryEditor: View {
                         .keyboardType(.numberPad)
                     TextField("Литры", text: $liters)
                         .keyboardType(.decimalPad)
+                    Picker("Топливо", selection: $fuelType) {
+                        ForEach(["Бензин", "Дизель", "LPG", "CNG", "E85", "Другое"], id: \.self) { type in
+                            Text(type).tag(type)
+                        }
+                    }
                     TextField("Сумма", text: $amount)
                         .keyboardType(.decimalPad)
                     Picker("Валюта", selection: $currency) {
@@ -544,10 +600,9 @@ private struct FuelEntryEditor: View {
                     }
                 }
             }
-            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
-            .navigationTitle("Новая заправка")
+            .navigationTitle(entry == nil ? "Новая заправка" : "Изменить заправку")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -568,15 +623,27 @@ private struct FuelEntryEditor: View {
             errorMessage = "Введи пробег цифрами."
             return
         }
-        guard let litersValue = Double(normalizedLiters), litersValue > 0 else {
+        guard let litersValue = Double(normalizedLiters), litersValue > 0, litersValue.isFinite else {
             errorMessage = "Введи количество топлива."
             return
         }
 
         let amountValue = Double(normalizedAmount) ?? 0
-
-        modelContext.insert(
-            FuelEntry(
+        guard amountValue.isFinite, amountValue >= 0 else {
+            errorMessage = "Стоимость не может быть отрицательной."
+            return
+        }
+        if let entry {
+            entry.date = date
+            entry.mileage = mileageValue
+            entry.liters = litersValue
+            entry.amount = amountValue
+            entry.currency = currency
+            entry.isFullTank = isFullTank
+            entry.fuelType = fuelType
+            entry.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            modelContext.insert(FuelEntry(
                 vehicleID: vehicle.id,
                 date: date,
                 mileage: mileageValue,
@@ -584,11 +651,12 @@ private struct FuelEntryEditor: View {
                 amount: amountValue,
                 currency: currency,
                 isFullTank: isFullTank,
+                fuelType: fuelType,
                 notes: notes.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
-        )
+            ))
+        }
 
-        if mileageValue > vehicle.currentMileage {
+        if entry == nil && mileageValue > vehicle.currentMileage {
             vehicle.currentMileage = mileageValue
             modelContext.insert(
                 MileageEntry(
@@ -603,6 +671,7 @@ private struct FuelEntryEditor: View {
             try modelContext.save()
             dismiss()
         } catch {
+            modelContext.rollback()
             errorMessage = "Не удалось сохранить заправку: \(error.localizedDescription)"
         }
     }
