@@ -99,11 +99,14 @@ struct SettingsView: View {
                 }
 
                 Section("Уведомления") {
-                    Button {
-                        Task {
-                            notificationsAllowed = await NotificationManager.shared.requestAuthorization()
+                    if !notificationsAllowed {
+                        Button {
+                            Task {
+                                notificationsAllowed = await NotificationManager.shared.requestAuthorization()
 
-                            if notificationsAllowed {
+                            }
+
+                    if notificationsAllowed {
                                 refreshAllNotifications()
                             }
                         }
@@ -167,6 +170,9 @@ struct SettingsView: View {
             .navigationTitle("Настройки")
             .task {
                 notificationsAllowed = await NotificationManager.shared.authorizationGranted()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                Task { notificationsAllowed = await NotificationManager.shared.authorizationGranted() }
             }
             .fileExporter(
                 isPresented: $showingExporter,
