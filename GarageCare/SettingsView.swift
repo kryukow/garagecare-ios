@@ -136,6 +136,7 @@ struct SettingsView: View {
                     LabeledContent("Версия", value: appVersion)
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle("Настройки")
