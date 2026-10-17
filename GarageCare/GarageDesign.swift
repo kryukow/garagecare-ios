@@ -177,3 +177,30 @@ extension View {
         modifier(GarageKeyboardDismissModifier())
     }
 }
+
+
+private struct GarageKeyboardDismissModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Готово") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil,
+                            from: nil,
+                            for: nil
+                        )
+                    }
+                }
+            }
+    }
+}
+
+extension View {
+    func garageKeyboardDismissal() -> some View {
+        modifier(GarageKeyboardDismissModifier())
+    }
+}
