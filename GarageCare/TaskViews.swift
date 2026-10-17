@@ -359,6 +359,7 @@ struct TaskEditorView: View {
                         .lineLimit(2...6)
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle(task == nil ? "Новая работа" : "Изменить работу")
