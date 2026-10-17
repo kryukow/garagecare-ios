@@ -103,12 +103,13 @@ extension MaintenanceTask {
         return value.isFinite ? min(max(value, 0), 1) : 0
     }
 
-    func displayColor(currentMileage: Int, warningKm: Int, warningDays: Int, currentEngineHours: Double = 0) -> Color {
+    func displayColor(currentMileage: Int, warningKm: Int, warningDays: Int, currentEngineHours: Double = 0, warningEngineHours: Double = 10) -> Color {
         let dueState = state(
             currentMileage: currentMileage,
             warningKm: warningKm,
             warningDays: warningDays,
-            currentEngineHours: currentEngineHours
+            currentEngineHours: currentEngineHours,
+            warningEngineHours: warningEngineHours
         )
         return Color.maintenanceStatus(
             progress: displayProgress(currentMileage: currentMileage, currentEngineHours: currentEngineHours),
