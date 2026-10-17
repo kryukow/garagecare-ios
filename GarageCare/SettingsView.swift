@@ -28,7 +28,7 @@ struct SettingsView: View {
     @Query private var fuelEntries: [FuelEntry]
 
     @AppStorage("warningKm") private var warningKm = 1_000
-    @AppStorage("warningDays") private var warningDays = 7
+    @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
     @AppStorage("mileageReminderDays") private var mileageReminderDays = 30
     @AppStorage("appearanceMode") private var appearanceMode = AppAppearance.system.rawValue
 
@@ -57,14 +57,15 @@ struct SettingsView: View {
                     )
 
                     Stepper(
-                        "За \(warningDays) дн.",
-                        value: $warningDays,
-                        in: 0...60
+                        "За \(Formatters.engineHours(warningEngineHours))",
+                        value: $warningEngineHours,
+                        in: 0...100,
+                        step: 5
                     )
                 } header: {
                     Text("Предупреждать заранее")
                 } footer: {
-                    Text("Расчёт по пробегу обновляется после внесения нового показания одометра.")
+                    Text("Расчёт обновляется после внесения нового пробега или моточасов.")
                 }
 
                 Section("Ввод пробега") {
@@ -135,6 +136,7 @@ struct SettingsView: View {
                     LabeledContent("Версия", value: appVersion)
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle("Настройки")
@@ -219,7 +221,7 @@ struct SettingsView: View {
 
     private func prepareExport() {
         let payload = BackupPayload(
-            version: 2,
+            version: 3,
             exportedAt: .now,
             vehicles: vehicles.map(VehicleSnapshot.init),
             tasks: tasks.map(TaskSnapshot.init),
@@ -258,7 +260,7 @@ struct SettingsView: View {
 
             let payload = try decoder.decode(BackupPayload.self, from: data)
 
-            guard (1...2).contains(payload.version) else {
+            guard (1...3).contains(payload.version) else {
                 activeAlert = .message("Эта версия резервной копии не поддерживается.")
                 return
             }
@@ -288,6 +290,7 @@ struct SettingsView: View {
                     year: value.year,
                     vin: value.vin,
                     currentMileage: value.currentMileage,
+                    currentEngineHours: value.currentEngineHours ?? 0,
                     notes: value.notes,
                     expectedFuelConsumption: value.expectedFuelConsumption ?? 0,
                     imageData: value.imageData,
@@ -303,8 +306,10 @@ struct SettingsView: View {
                     vehicleID: value.vehicleID,
                     title: value.title,
                     intervalKm: value.intervalKm,
-                    intervalMonths: value.intervalMonths,
+                    intervalMonths: 0,
+                    intervalEngineHours: value.intervalEngineHours ?? 0,
                     lastMileage: value.lastMileage,
+                    lastEngineHours: value.lastEngineHours ?? 0,
                     lastDate: value.lastDate,
                     notes: value.notes,
                     createdAt: value.createdAt
@@ -320,6 +325,7 @@ struct SettingsView: View {
                     taskID: value.taskID,
                     title: value.title,
                     mileage: value.mileage,
+                    engineHours: value.engineHours ?? 0,
                     date: value.date,
                     cost: value.cost,
                     currency: value.currency,
@@ -334,6 +340,7 @@ struct SettingsView: View {
                     id: value.id,
                     vehicleID: value.vehicleID,
                     mileage: value.mileage,
+                    engineHours: value.engineHours ?? 0,
                     date: value.date
                 )
             )
@@ -370,7 +377,7 @@ struct SettingsView: View {
                 vehicle: vehicle,
                 tasks: tasks.filter { $0.vehicleID == vehicle.id },
                 warningKm: warningKm,
-                warningDays: warningDays
+                warningEngineHours: warningEngineHours
             )
 
             let lastUpdate = mileageEntries
