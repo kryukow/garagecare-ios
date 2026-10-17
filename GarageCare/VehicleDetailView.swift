@@ -8,7 +8,7 @@ struct VehicleDetailView: View {
     @Query private var tasks: [MaintenanceTask]
 
     @AppStorage("warningKm") private var warningKm = 1_000
-    @AppStorage("warningDays") private var warningDays = 7
+    @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
     @AppStorage("taskLayoutMode") private var taskLayoutMode = "grid"
 
     private enum ActiveModal: String, Identifiable {
@@ -118,7 +118,7 @@ struct VehicleDetailView: View {
                                             task: task,
                                             currentMileage: vehicle.currentMileage,
                                             warningKm: warningKm,
-                                            warningDays: warningDays
+                                            warningEngineHours: warningEngineHours
                                         )
                                     }
                                     .buttonStyle(.plain)
@@ -140,7 +140,7 @@ struct VehicleDetailView: View {
                                             task: task,
                                             currentMileage: vehicle.currentMileage,
                                             warningKm: warningKm,
-                                            warningDays: warningDays
+                                            warningEngineHours: warningEngineHours
                                         )
                                     }
                                     .buttonStyle(.plain)
@@ -345,7 +345,7 @@ private struct TaskCard: View {
         task.state(
             currentMileage: currentMileage,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningEngineHours: warningEngineHours
         )
     }
 
@@ -357,7 +357,7 @@ private struct TaskCard: View {
         task.displayColor(
             currentMileage: currentMileage,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningEngineHours: warningEngineHours
         )
     }
 
@@ -446,7 +446,7 @@ private struct TaskListRow: View {
         task.state(
             currentMileage: currentMileage,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningEngineHours: warningEngineHours
         )
     }
 
@@ -458,7 +458,7 @@ private struct TaskListRow: View {
         task.displayColor(
             currentMileage: currentMileage,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningEngineHours: warningEngineHours
         )
     }
 
@@ -532,7 +532,7 @@ private struct UpdateMileageView: View {
     let tasks: [MaintenanceTask]
 
     @AppStorage("warningKm") private var warningKm = 1_000
-    @AppStorage("warningDays") private var warningDays = 7
+    @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
     @AppStorage("mileageReminderDays") private var mileageReminderDays = 30
     @State private var mileage = ""
     @State private var date = Date.now
@@ -589,7 +589,7 @@ private struct UpdateMileageView: View {
             vehicle: vehicle,
             tasks: tasks,
             warningKm: warningKm,
-            warningDays: warningDays
+            warningEngineHours: warningEngineHours
         )
         NotificationManager.shared.scheduleMileageEntryReminder(
             vehicle: vehicle,
