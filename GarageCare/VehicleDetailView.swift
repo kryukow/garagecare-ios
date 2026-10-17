@@ -53,23 +53,21 @@ struct VehicleDetailView: View {
 
                 ScrollView(.vertical) {
                     VStack(spacing: 18) {
-                        VehicleHero(vehicle: vehicle)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                if !GaragePhotoArchive.images(
-                                    primary: vehicle.imageData, additional: vehicle.extraPhotoData
-                                ).isEmpty {
-                                    selectedVehiclePhoto = 0
-                                    showingVehiclePhotos = true
-                                }
+                        VehicleHero(vehicle: vehicle, onPhotoTap: {
+                            if !GaragePhotoArchive.images(
+                                primary: vehicle.imageData, additional: vehicle.extraPhotoData
+                            ).isEmpty {
+                                selectedVehiclePhoto = 0
+                                showingVehiclePhotos = true
                             }
-                            .accessibilityHint("Нажми, чтобы посмотреть фотографии автомобиля")
+                        }, onMileageTap: {
+                            activeModal = .mileage
+                        })
 
                         VehicleDeadlinesCard(vehicle: vehicle) {
                             activeModal = .deadlines
                         }
 
-                        mileageCard
 
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 3) {
@@ -257,23 +255,57 @@ struct VehicleDetailView: View {
         }
     }
 
-    private var mileageCard: some View {
-        Button {
-            activeModal = .mileage
-        } label: {
-            ZStack(alignment: .trailing) {
-                LinearGradient(
-                    colors: [
-                        Color.clear,
-                        Color.garageGreen.opacity(0.035),
-                        Color.garageGreen.opacity(0.13)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: 175)
-                .allowsHitTesting(false)
+}
 
+private struct VehicleHero: View {
+    let vehicle: Vehicle
+    let onPhotoTap: () -> Void
+    let onMileageTap: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: onPhotoTap) {
+                ZStack(alignment: .bottomLeading) {
+                    vehicleImage
+                        .frame(height: 218)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.87)],
+                        startPoint: .center,
+                        endPoint: .bottom
+                    )
+
+                    HStack(alignment: .bottom) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(vehicle.displayName.isEmpty ? "Автомобиль" : vehicle.displayName)
+                                .font(.title2.bold())
+                                .foregroundStyle(.white)
+
+                            HStack(spacing: 9) {
+                                if vehicle.year > 0 {
+                                    Text(String(vehicle.year))
+                                }
+                                if !vehicle.vin.isEmpty {
+                                    Text("VIN • \\(String(vehicle.vin.suffix(6)))")
+                                }
+                            }
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.white.opacity(0.72))
+                        }
+                        Spacer()
+                        GarageStatusPill(title: "АКТИВЕН", color: .garageGreen, systemImage: "checkmark")
+                    }
+                    .padding(16)
+                }
+                .frame(height: 218)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Открыть фотографии автомобиля")
+
+            Button(action: onMileageTap) {
                 HStack(spacing: 14) {
                     Image(systemName: "road.lanes")
                         .font(.system(size: 23, weight: .semibold))
@@ -283,91 +315,34 @@ struct VehicleDetailView: View {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(Color.garageGreen.opacity(0.11))
                         )
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(Color.garageGreen.opacity(0.16), lineWidth: 1)
-                        }
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text("ТЕКУЩИЙ ПРОБЕГ")
                             .font(.caption2.weight(.bold))
-                            .tracking(1.0)
-                            .foregroundStyle(.secondary)
-
+                            .tracking(1)
+                            .foregroundStyle(.white.opacity(0.67))
                         Text(Formatters.mileage(vehicle.currentMileage))
                             .font(.title2.bold())
                             .monospacedDigit()
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(.white)
+                            .minimumScaleFactor(0.7)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.72)
                     }
-
-                    Spacer(minLength: 8)
-
+                    Spacer(minLength: 6)
                     Image(systemName: "chevron.right")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.trailing, 2)
+                        .foregroundStyle(.white.opacity(0.65))
                 }
-                .padding(16)
+                .padding(.horizontal, 16)
+                .padding(.top, 5)
+                .padding(.bottom, 16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.black.opacity(0.87))
+                .contentShape(Rectangle())
             }
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .garageCard(cornerRadius: 22)
+            .buttonStyle(.plain)
+            .accessibilityLabel("Текущий пробег \\(Formatters.mileage(vehicle.currentMileage)). Обновить")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Обновить пробег")
-    }
-
-}
-
-private struct VehicleHero: View {
-    let vehicle: Vehicle
-
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            GeometryReader { proxy in
-                vehicleImage
-                    .frame(width: proxy.size.width, height: 218)
-                    .clipped()
-            }
-            .frame(height: 218)
-
-            LinearGradient(
-                colors: [Color.clear, Color.black.opacity(0.82)],
-                startPoint: .center,
-                endPoint: .bottom
-            )
-
-            HStack(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(vehicle.displayName.isEmpty ? "Автомобиль" : vehicle.displayName)
-                        .font(.title2.bold())
-                        .foregroundStyle(.white)
-
-                    HStack(spacing: 9) {
-                        if vehicle.year > 0 {
-                            Text(String(vehicle.year))
-                        }
-                        if !vehicle.vin.isEmpty {
-                            Text("VIN • \(String(vehicle.vin.suffix(6)))")
-                        }
-                    }
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.72))
-                }
-
-                Spacer()
-
-                GarageStatusPill(
-                    title: "АКТИВЕН",
-                    color: .garageGreen,
-                    systemImage: "checkmark"
-                )
-            }
-            .padding(16)
-        }
-        .frame(maxWidth: .infinity, minHeight: 218, maxHeight: 218)
+        .background(Color.black)
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 26, style: .continuous)
