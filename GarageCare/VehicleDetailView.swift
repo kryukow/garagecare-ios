@@ -702,6 +702,7 @@ private struct EditVehicleView: View {
                         .lineLimit(2...6)
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle("Автомобиль")
