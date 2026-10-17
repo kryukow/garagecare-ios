@@ -247,7 +247,7 @@ struct VehicleDetailView: View {
             .garageCard(cornerRadius: 22)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Обновить пробег")
+        .accessibilityLabel("Обновить пробег и моточасы")
     }
 
 }
@@ -553,15 +553,26 @@ private struct UpdateMileageView: View {
     @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
     @AppStorage("mileageReminderDays") private var mileageReminderDays = 30
     @State private var mileage = ""
+    @State private var engineHours = ""
     @State private var date = Date.now
     @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Новый пробег") {
-                    TextField("Километры", text: $mileage)
-                        .keyboardType(.numberPad)
+                Section("Новые показания") {
+                    LabeledContent("Пробег") {
+                        TextField("Километры", text: $mileage)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+
+                    LabeledContent("Моточасы") {
+                        TextField("Не заданы", text: $engineHours)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+
                     DatePicker("Дата", selection: $date, displayedComponents: .date)
                 }
 
@@ -574,7 +585,7 @@ private struct UpdateMileageView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
-            .navigationTitle("Обновить пробег")
+            .navigationTitle("Обновить показания")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -586,6 +597,9 @@ private struct UpdateMileageView: View {
             }
             .onAppear {
                 mileage = String(vehicle.currentMileage)
+                engineHours = vehicle.currentEngineHours > 0
+                    ? String(format: "%.1f", vehicle.currentEngineHours)
+                    : ""
             }
         }
     }
@@ -600,8 +614,26 @@ private struct UpdateMileageView: View {
             return
         }
 
+        let normalizedHours = engineHours.replacingOccurrences(of: ",", with: ".")
+        let hoursValue = normalizedHours.isEmpty
+            ? vehicle.currentEngineHours
+            : (Double(normalizedHours) ?? -1)
+
+        guard hoursValue >= vehicle.currentEngineHours else {
+            errorMessage = "Моточасы не могут быть меньше текущего значения."
+            return
+        }
+
         vehicle.currentMileage = value
-        modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: value, date: date))
+        vehicle.currentEngineHours = hoursValue
+        modelContext.insert(
+            MileageEntry(
+                vehicleID: vehicle.id,
+                mileage: value,
+                engineHours: hoursValue,
+                date: date
+            )
+        )
         try? modelContext.save()
         NotificationManager.shared.refresh(
             vehicle: vehicle,
