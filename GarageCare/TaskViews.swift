@@ -506,6 +506,7 @@ private struct CompleteTaskView: View {
 
     @AppStorage("warningKm") private var warningKm = 1_000
     @AppStorage("warningDays") private var warningDays = 7
+    @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
     @AppStorage("mileageReminderDays") private var mileageReminderDays = 30
     @State private var mileage: String
     @State private var engineHours: String
@@ -522,17 +523,24 @@ private struct CompleteTaskView: View {
         self.vehicle = vehicle
         self.task = task
         _mileage = State(initialValue: String(vehicle.currentMileage))
-        _engineHours = State(initialValue: String(vehicle.engineHours))
+        let baselineHours = max(vehicle.engineHours, task.lastEngineHours)
+        _engineHours = State(initialValue: baselineHours > 0 ? String(format: "%.1f", baselineHours) : "")
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section(task.title) {
-                    TextField("Пробег", text: $mileage)
-                        .keyboardType(.numberPad)
-                    TextField("Моточасы", text: $engineHours)
-                        .keyboardType(.decimalPad)
+                    LabeledContent("Пробег") {
+                        TextField("Пробег", text: $mileage)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("Моточасы") {
+                        TextField("Не заданы", text: $engineHours)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                     DatePicker("Дата", selection: $date, displayedComponents: .date)
                 }
 
@@ -568,6 +576,7 @@ private struct CompleteTaskView: View {
                         .foregroundStyle(.red)
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .onChange(of: receiptItem) { _, item in
@@ -601,7 +610,8 @@ private struct CompleteTaskView: View {
 
         let normalizedCost = cost.replacingOccurrences(of: ",", with: ".")
         let costValue = Double(normalizedCost) ?? 0
-        let hoursValue = Double(engineHours.replacingOccurrences(of: ",", with: ".")) ?? -1
+        let normalizedHours = engineHours.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+        let hoursValue = normalizedHours.isEmpty ? max(vehicle.engineHours, task.lastEngineHours) : (Double(normalizedHours) ?? -1)
         guard costValue.isFinite, costValue >= 0, hoursValue.isFinite, hoursValue >= task.lastEngineHours, hoursValue >= vehicle.engineHours else {
             errorMessage = "Проверь стоимость и моточасы."
             return
@@ -611,6 +621,7 @@ private struct CompleteTaskView: View {
             taskID: task.id,
             title: task.title,
             mileage: mileageValue,
+            engineHours: hoursValue,
             date: date,
             cost: costValue,
             currency: currency,
@@ -627,7 +638,7 @@ private struct CompleteTaskView: View {
         let updatedVehicleMileage = mileageValue > vehicle.currentMileage
         if updatedVehicleMileage {
             vehicle.currentMileage = mileageValue
-            modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: mileageValue, date: date))
+            modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: mileageValue, engineHours: hoursValue, date: date))
         }
 
         do {
@@ -668,9 +679,14 @@ struct ServiceRecordRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text(Formatters.mileage(record.mileage))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                Text(Formatters.mileage(record.mileage))
+                if record.engineHours > 0 {
+                    Text(String(format: "%.1f мч", record.engineHours))
+                }
+            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
 
             if record.cost > 0 {
                 Text(record.cost, format: .currency(code: record.currency))
