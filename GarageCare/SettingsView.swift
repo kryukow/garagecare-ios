@@ -138,6 +138,7 @@ struct SettingsView: View {
             }
             .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
+            .garageKeyboardDismissal()
             .background(Color.garageBackground)
             .navigationTitle("Настройки")
             .task {
