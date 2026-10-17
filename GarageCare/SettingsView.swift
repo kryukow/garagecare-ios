@@ -29,6 +29,7 @@ struct SettingsView: View {
 
     @AppStorage("warningKm") private var warningKm = 1_000
     @AppStorage("warningDays") private var warningDays = 7
+    @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
     @AppStorage("mileageReminderDays") private var mileageReminderDays = 30
     @AppStorage("appearanceMode") private var appearanceMode = AppAppearance.system.rawValue
 
@@ -44,7 +45,7 @@ struct SettingsView: View {
     @State private var activeAlert: SettingsAlert?
 
     private var appVersion: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.3.0"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.4.2"
     }
 
     var body: some View {
@@ -62,6 +63,12 @@ struct SettingsView: View {
                         "За \(warningDays) дн.",
                         value: $warningDays,
                         in: 0...60
+                    )
+                    Stepper(
+                        "За \(Formatters.engineHours(warningEngineHours))",
+                        value: $warningEngineHours,
+                        in: 0...200,
+                        step: 5
                     )
                 } header: {
                     Text("Предупреждать заранее")
@@ -152,6 +159,7 @@ struct SettingsView: View {
                     LabeledContent("Версия", value: appVersion)
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle("Настройки")
@@ -347,6 +355,7 @@ struct SettingsView: View {
                     lastMileage: value.lastMileage,
                     lastDate: value.lastDate,
                     notes: value.notes,
+                    imageData: value.imageData,
                     createdAt: value.createdAt
                 )
             )
@@ -360,6 +369,7 @@ struct SettingsView: View {
                     taskID: value.taskID,
                     title: value.title,
                     mileage: value.mileage,
+                    engineHours: value.engineHours ?? 0,
                     date: value.date,
                     cost: value.cost,
                     currency: value.currency,
@@ -376,6 +386,7 @@ struct SettingsView: View {
                     id: value.id,
                     vehicleID: value.vehicleID,
                     mileage: value.mileage,
+                    engineHours: value.engineHours ?? 0,
                     date: value.date
                 )
             )
