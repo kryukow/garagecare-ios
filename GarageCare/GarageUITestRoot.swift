@@ -9,13 +9,16 @@ struct GarageUITestRoot: View {
     @State private var task: MaintenanceTask?
 
     var body: some View {
-        Group {
+        ZStack {
             if let vehicle, let task {
                 if ProcessInfo.processInfo.arguments.contains("--completion") {
                     CompleteTaskView(vehicle: vehicle, task: task)
                 } else {
                     TaskEditorView(vehicle: vehicle)
                 }
+            } else {
+                ProgressView("Подготовка тестового экрана")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .environment(\.locale, Locale(identifier: "ru_RU"))
