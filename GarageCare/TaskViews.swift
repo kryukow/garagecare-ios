@@ -1,5 +1,7 @@
+import PhotosUI
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct TaskDetailView: View {
     @Environment(\.modelContext) private var modelContext
@@ -50,6 +52,16 @@ struct TaskDetailView: View {
                             Text(Formatters.russianDate(task.lastDate))
                                 .foregroundStyle(.secondary)
                         }
+                    }
+                }
+
+                if let data = task.imageData, let image = UIImage(data: data) {
+                    detailCard(title: "Фото") {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: .infinity)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                 }
 
@@ -286,6 +298,8 @@ struct TaskEditorView: View {
     @State private var lastEngineHours: String
     @State private var lastDate: Date
     @State private var notes: String
+    @State private var imageData: Data?
+    @State private var photoItem: PhotosPickerItem?
 
     init(vehicle: Vehicle, task: MaintenanceTask? = nil) {
         self.vehicle = vehicle
@@ -300,6 +314,7 @@ struct TaskEditorView: View {
         _lastEngineHours = State(initialValue: baselineHours > 0 ? String(format: "%.1f", baselineHours) : "")
         _lastDate = State(initialValue: task?.lastDate ?? .now)
         _notes = State(initialValue: task?.notes ?? "")
+        _imageData = State(initialValue: task?.imageData)
     }
 
     private var canSave: Bool {
@@ -354,6 +369,25 @@ struct TaskEditorView: View {
                     DatePicker("Дата", selection: $lastDate, displayedComponents: .date)
                 }
 
+                Section("Фото") {
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Label(imageData == nil ? "Прикрепить фото" : "Заменить фото", systemImage: "photo")
+                    }
+
+                    if let imageData, let image = UIImage(data: imageData) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 220)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                        Button("Удалить фото", role: .destructive) {
+                            self.imageData = nil
+                            photoItem = nil
+                        }
+                    }
+                }
+
                 Section("Заметка") {
                     TextField("Масло, артикулы, допуски и другое", text: $notes, axis: .vertical)
                         .lineLimit(2...6)
@@ -364,6 +398,13 @@ struct TaskEditorView: View {
             .background(Color.garageBackground)
             .navigationTitle(task == nil ? "Новая работа" : "Изменить работу")
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: photoItem) { _, newItem in
+                Task {
+                    if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                        imageData = data
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Отмена") { dismiss() }
@@ -393,6 +434,7 @@ struct TaskEditorView: View {
             task.lastEngineHours = engineHours
             task.lastDate = lastDate
             task.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            task.imageData = imageData
             savedTask = task
         } else {
             let newTask = MaintenanceTask(
@@ -404,7 +446,8 @@ struct TaskEditorView: View {
                 lastMileage: mileage,
                 lastEngineHours: engineHours,
                 lastDate: lastDate,
-                notes: notes.trimmingCharacters(in: .whitespacesAndNewlines)
+                notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+                imageData: imageData
             )
             modelContext.insert(newTask)
             savedTask = newTask
@@ -435,6 +478,8 @@ private struct CompleteTaskView: View {
     @State private var cost = ""
     @State private var currency = "EUR"
     @State private var notes = ""
+    @State private var imageData: Data?
+    @State private var photoItem: PhotosPickerItem?
     @State private var errorMessage: String?
 
     init(vehicle: Vehicle, task: MaintenanceTask) {
@@ -480,6 +525,25 @@ private struct CompleteTaskView: View {
                     }
                 }
 
+                Section("Фото") {
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Label(imageData == nil ? "Прикрепить фото или чек" : "Заменить фото", systemImage: "photo")
+                    }
+
+                    if let imageData, let image = UIImage(data: imageData) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 220)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                        Button("Удалить фото", role: .destructive) {
+                            self.imageData = nil
+                            photoItem = nil
+                        }
+                    }
+                }
+
                 Section("Заметка") {
                     TextField("Что установлено или сделано", text: $notes, axis: .vertical)
                         .lineLimit(2...6)
@@ -494,6 +558,13 @@ private struct CompleteTaskView: View {
             .background(Color.garageBackground)
             .navigationTitle("Работа выполнена")
             .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: photoItem) { _, newItem in
+                Task {
+                    if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                        imageData = data
+                    }
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Отмена") { dismiss() }
@@ -532,7 +603,8 @@ private struct CompleteTaskView: View {
             date: date,
             cost: Double(normalizedCost) ?? 0,
             currency: currency,
-            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+            imageData: imageData
         )
         modelContext.insert(record)
         task.lastMileage = mileageValue
@@ -598,6 +670,16 @@ struct ServiceRecordRow: View {
             if record.cost > 0 {
                 Text(record.cost, format: .currency(code: record.currency))
                     .font(.subheadline.bold())
+            }
+
+            if let data = record.imageData, let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 150)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
 
             if !record.notes.isEmpty {
