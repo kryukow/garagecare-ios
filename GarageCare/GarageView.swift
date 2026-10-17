@@ -400,6 +400,7 @@ private struct AddVehicleView: View {
     @State private var year = ""
     @State private var vin = ""
     @State private var mileage = ""
+    @State private var engineHours = ""
     @State private var notes = ""
     @State private var expectedConsumption = ""
     @State private var imageData: Data?
@@ -426,6 +427,11 @@ private struct AddVehicleView: View {
                         .autocorrectionDisabled()
                     TextField("Текущий пробег, км", text: $mileage)
                         .keyboardType(.numberPad)
+                    LabeledContent("Моточасы") {
+                        TextField("Не заданы", text: $engineHours)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
 
                 Section {
@@ -463,6 +469,7 @@ private struct AddVehicleView: View {
                 }
                 if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle("Новый автомобиль")
@@ -487,18 +494,24 @@ private struct AddVehicleView: View {
     private func save() {
         guard let mileageValue = Int(mileage.filter(\.isNumber)) else { return }
         let normalizedExpected = expectedConsumption.replacingOccurrences(of: ",", with: ".")
+        let normalizedHours = engineHours.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+        guard let hoursValue = normalizedHours.isEmpty ? 0.0 : Double(normalizedHours), hoursValue.isFinite, hoursValue >= 0 else {
+            errorMessage = "Проверь моточасы двигателя."
+            return
+        }
         let vehicle = Vehicle(
             make: make.trimmingCharacters(in: .whitespacesAndNewlines),
             model: model.trimmingCharacters(in: .whitespacesAndNewlines),
             year: Int(year.filter(\.isNumber)) ?? Calendar.current.component(.year, from: .now),
             vin: vin.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
             currentMileage: mileageValue,
+            engineHours: hoursValue,
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             expectedFuelConsumption: Double(normalizedExpected) ?? 0,
             imageData: imageData
         )
         modelContext.insert(vehicle)
-        modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: mileageValue))
+        modelContext.insert(MileageEntry(vehicleID: vehicle.id, mileage: mileageValue, engineHours: hoursValue))
 
         if addTemplates {
             [
@@ -514,6 +527,7 @@ private struct AddVehicleView: View {
                     vehicleID: vehicle.id,
                     title: title,
                     intervalMonths: title == "HU / TÜV" ? 24 : 0,
+                    lastEngineHours: hoursValue,
                     lastMileage: mileageValue
                 ))
             }
