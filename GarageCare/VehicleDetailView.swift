@@ -583,6 +583,7 @@ private struct UpdateMileageView: View {
                     }
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle("Обновить показания")
