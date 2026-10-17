@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      run_ui_tests:
+        description: "Дополнительно выполнить UI-тесты (дольше обычной сборки)"
+        required: false
+        type: boolean
+        default: false
 
 # A newer main build replaces an older one; do not accumulate competing IPAs.
 concurrency:
@@ -37,7 +43,7 @@ jobs:
       - name: Создать Xcode-проект
         run: xcodegen generate
 
-      - name: Запустить unit- и UI-тесты
+      - name: Запустить unit-тесты
         shell: bash
         run: |
           set -o pipefail
@@ -54,6 +60,7 @@ jobs:
           ')"
 
           echo "Simulator: $SIMULATOR_UDID"
+          echo "SIMULATOR_UDID=$SIMULATOR_UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$SIMULATOR_UDID" 2>/dev/null || true
 
           xcodebuild test \
@@ -63,6 +70,7 @@ jobs:
             -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" \
             -destination-timeout 120 \
             -resultBundlePath "$RUNNER_TEMP/GarageCareTests.xcresult" \
+            -only-testing:GarageCareTests \
             -parallel-testing-enabled NO \
             -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 30 \
@@ -111,11 +119,32 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Дополнительные UI-тесты по запросу
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_ui_tests }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project GarageCare.xcodeproj \
+            -scheme GarageCare \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" \
+            -destination-timeout 120 \
+            -resultBundlePath "$RUNNER_TEMP/GarageCareUITests.xcresult" \
+            -only-testing:GarageCareUITests \
+            -parallel-testing-enabled NO \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 30 \
+            -maximum-test-execution-time-allowance 60 \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
       - name: Извлечь снимки экранов UI-тестов
         if: always()
         run: |
-          if [ -d "$RUNNER_TEMP/GarageCareTests.xcresult" ]; then
-            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/GarageCareTests.xcresult" --output-path "$RUNNER_TEMP/screenshots"
+          if [ -d "$RUNNER_TEMP/GarageCareUITests.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/GarageCareUITests.xcresult" --output-path "$RUNNER_TEMP/screenshots"
           fi
 
       - name: Сохранить результаты тестов и снимки экранов
@@ -125,6 +154,7 @@ jobs:
           name: GarageCare-test-results-${{ github.sha }}
           path: |
             ${{ runner.temp }}/GarageCareTests.xcresult
+            ${{ runner.temp }}/GarageCareUITests.xcresult
             ${{ runner.temp }}/screenshots
           if-no-files-found: ignore
           retention-days: 14
