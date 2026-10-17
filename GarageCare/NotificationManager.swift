@@ -29,15 +29,21 @@ final class NotificationManager {
         vehicle: Vehicle,
         tasks: [MaintenanceTask],
         warningKm: Int,
-        warningDays: Int
+        warningEngineHours: Double
     ) {
         let center = UNUserNotificationCenter.current()
-        let identifiers = tasks.flatMap { ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)"] }
+        let identifiers = tasks.flatMap {
+            ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)", "hours-\($0.id.uuidString)"]
+        }
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
 
         for task in tasks {
-            scheduleDateNotification(vehicle: vehicle, task: task, warningDays: warningDays)
             scheduleMileageNotification(vehicle: vehicle, task: task, warningKm: warningKm)
+            scheduleEngineHoursNotification(
+                vehicle: vehicle,
+                task: task,
+                warningEngineHours: warningEngineHours
+            )
         }
     }
 
