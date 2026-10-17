@@ -79,7 +79,8 @@ final class NotificationManager {
         let center = UNUserNotificationCenter.current()
         let identifiers = [
             "date-\(task.id.uuidString)",
-            "km-\(task.id.uuidString)"
+            "km-\(task.id.uuidString)",
+            "hours-\(task.id.uuidString)"
         ]
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
         center.removeDeliveredNotifications(withIdentifiers: identifiers)
@@ -88,7 +89,9 @@ final class NotificationManager {
     func cancelNotifications(for vehicle: Vehicle, tasks: [MaintenanceTask]) {
         let center = UNUserNotificationCenter.current()
         let identifiers =
-            tasks.flatMap { ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)"] } +
+            tasks.flatMap {
+                ["date-\($0.id.uuidString)", "km-\($0.id.uuidString)", "hours-\($0.id.uuidString)"]
+            } +
             ["mileage-entry-\(vehicle.id.uuidString)"]
 
         center.removePendingNotificationRequests(withIdentifiers: identifiers)
