@@ -490,6 +490,7 @@ private struct CompleteTaskView: View {
                         .foregroundStyle(.red)
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
             .background(Color.garageBackground)
             .navigationTitle("Работа выполнена")
