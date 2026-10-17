@@ -32,7 +32,7 @@ jobs:
       - name: Создать Xcode-проект
         run: xcodegen generate
 
-      - name: Запустить unit-тесты
+      - name: Запустить unit- и UI-тесты
         shell: bash
         run: |
           set -o pipefail
@@ -85,24 +85,41 @@ jobs:
           APP="$RUNNER_TEMP/GarageCareDerived/Build/Products/Release-iphoneos/GarageCare.app"
           test -d "$APP" || { echo "GarageCare.app не найден"; exit 1; }
 
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Info.plist")
+          BUILD=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$APP/Info.plist")
+          IPA_NAME="GarageCare-${VERSION}-build${BUILD}-unsigned.ipa"
+          echo "IPA_NAME=$IPA_NAME" >> "$GITHUB_ENV"
+          echo "SOURCE_COMMIT=$GITHUB_SHA" > "$RUNNER_TEMP/BUILD-INFO.txt"
+          echo "VERSION=$VERSION ($BUILD)" >> "$RUNNER_TEMP/BUILD-INFO.txt"
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           cp -R "$APP" "$RUNNER_TEMP/ipa/Payload/"
-          (cd "$RUNNER_TEMP/ipa" && /usr/bin/zip -qry "$RUNNER_TEMP/GarageCare-1.4.2-unsigned.ipa" Payload)
-          /usr/bin/unzip -t "$RUNNER_TEMP/GarageCare-1.4.2-unsigned.ipa" >/dev/null
+          (cd "$RUNNER_TEMP/ipa" && /usr/bin/zip -qry "$RUNNER_TEMP/$IPA_NAME" Payload)
+          /usr/bin/unzip -t "$RUNNER_TEMP/$IPA_NAME" >/dev/null
 
       - name: Загрузить IPA
         uses: actions/upload-artifact@v4
         with:
-          name: GarageCare-1.4.2-build8-IPA
-          path: ${{ runner.temp }}/GarageCare-1.4.2-unsigned.ipa
+          name: ${{ env.IPA_NAME }}
+          path: |
+            ${{ runner.temp }}/${{ env.IPA_NAME }}
+            ${{ runner.temp }}/BUILD-INFO.txt
           if-no-files-found: error
           retention-days: 7
+
+      - name: Извлечь снимки экранов UI-тестов
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/GarageCareTests.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/GarageCareTests.xcresult" --output-path "$RUNNER_TEMP/screenshots"
+          fi
 
       - name: Сохранить результаты тестов и снимки экранов
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: GarageCare-1.4.2-test-results
-          path: ${{ runner.temp }}/GarageCareTests.xcresult
+          name: GarageCare-test-results-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/GarageCareTests.xcresult
+            ${{ runner.temp }}/screenshots
           if-no-files-found: ignore
           retention-days: 14

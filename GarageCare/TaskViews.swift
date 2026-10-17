@@ -661,7 +661,6 @@ struct CompleteTaskView: View {
             warningKm: warningKm,
             warningDays: warningDays
         )
-        vehicle.engineHours = max(vehicle.engineHours, hoursValue)
         if updatedVehicleMileage || updatedEngineHours {
             NotificationManager.shared.scheduleMileageEntryReminder(
                 vehicle: vehicle,
