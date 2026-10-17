@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct HistoryView: View {
     @Query(sort: [SortDescriptor(\ServiceRecord.date, order: .reverse)])
@@ -111,6 +112,16 @@ private struct HistoryCard: View {
                         .foregroundStyle(Color.garageGreen)
                         .lineLimit(1)
                 }
+            }
+
+            if let data = record.imageData, let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 180)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
 
             if !record.notes.isEmpty {
