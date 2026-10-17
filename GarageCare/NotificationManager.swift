@@ -98,31 +98,27 @@ final class NotificationManager {
         center.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 
-    private func scheduleDateNotification(vehicle: Vehicle, task: MaintenanceTask, warningDays: Int) {
-        guard let dueDate = task.nextDate() else { return }
-        let notificationDate = Calendar.current.date(byAdding: .day, value: -warningDays, to: dueDate) ?? dueDate
-
-        let content = UNMutableNotificationContent()
-        content.title = task.title
-        content.body = "Для \(vehicle.displayName) приближается регламентная работа."
-        content.sound = .default
-
-        if notificationDate <= .now {
-            let request = UNNotificationRequest(
-                identifier: "date-\(task.id.uuidString)",
-                content: content,
-                trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
-            )
-            UNUserNotificationCenter.current().add(request)
+    private func scheduleEngineHoursNotification(
+        vehicle: Vehicle,
+        task: MaintenanceTask,
+        warningEngineHours: Double
+    ) {
+        guard let remaining = task.engineHoursRemaining(currentEngineHours: vehicle.currentEngineHours),
+              remaining <= warningEngineHours else {
             return
         }
 
-        var components = Calendar.current.dateComponents([.year, .month, .day], from: notificationDate)
-        components.hour = 10
+        let content = UNMutableNotificationContent()
+        content.title = task.title
+        content.body = remaining < 0
+            ? "Для \(vehicle.displayName) работа просрочена на \(Formatters.engineHours(abs(remaining)))."
+            : "Для \(vehicle.displayName) осталось \(Formatters.engineHours(remaining))."
+        content.sound = .default
+
         let request = UNNotificationRequest(
-            identifier: "date-\(task.id.uuidString)",
+            identifier: "hours-\(task.id.uuidString)",
             content: content,
-            trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
         )
         UNUserNotificationCenter.current().add(request)
     }
