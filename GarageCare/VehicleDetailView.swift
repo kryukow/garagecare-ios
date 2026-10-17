@@ -117,6 +117,7 @@ struct VehicleDetailView: View {
                                         TaskListRow(
                                             task: task,
                                             currentMileage: vehicle.currentMileage,
+                                            currentEngineHours: vehicle.currentEngineHours,
                                             warningKm: warningKm,
                                             warningEngineHours: warningEngineHours
                                         )
@@ -139,6 +140,7 @@ struct VehicleDetailView: View {
                                         TaskCard(
                                             task: task,
                                             currentMileage: vehicle.currentMileage,
+                                            currentEngineHours: vehicle.currentEngineHours,
                                             warningKm: warningKm,
                                             warningEngineHours: warningEngineHours
                                         )
