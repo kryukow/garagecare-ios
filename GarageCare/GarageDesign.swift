@@ -138,3 +138,31 @@ extension View {
         modifier(GarageAdaptiveTabBarModifier())
     }
 }
+
+
+/// Closes numeric keyboards both on scroll and with an explicit Done control.
+private struct GarageKeyboardDismissModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Готово") {
+                        UIApplication.shared.sendAction(
+                            #selector(UIResponder.resignFirstResponder),
+                            to: nil,
+                            from: nil,
+                            for: nil
+                        )
+                    }
+                }
+            }
+    }
+}
+
+extension View {
+    func garageKeyboardDismiss() -> some View {
+        modifier(GarageKeyboardDismissModifier())
+    }
+}
