@@ -28,7 +28,7 @@ struct SettingsView: View {
     @Query private var fuelEntries: [FuelEntry]
 
     @AppStorage("warningKm") private var warningKm = 1_000
-    @AppStorage("warningDays") private var warningDays = 7
+    @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
     @AppStorage("mileageReminderDays") private var mileageReminderDays = 30
     @AppStorage("appearanceMode") private var appearanceMode = AppAppearance.system.rawValue
 
@@ -57,14 +57,15 @@ struct SettingsView: View {
                     )
 
                     Stepper(
-                        "За \(warningDays) дн.",
-                        value: $warningDays,
-                        in: 0...60
+                        "За \(Formatters.engineHours(warningEngineHours))",
+                        value: $warningEngineHours,
+                        in: 0...100,
+                        step: 5
                     )
                 } header: {
                     Text("Предупреждать заранее")
                 } footer: {
-                    Text("Расчёт по пробегу обновляется после внесения нового показания одометра.")
+                    Text("Расчёт обновляется после внесения нового пробега или моточасов.")
                 }
 
                 Section("Ввод пробега") {
@@ -370,7 +371,7 @@ struct SettingsView: View {
                 vehicle: vehicle,
                 tasks: tasks.filter { $0.vehicleID == vehicle.id },
                 warningKm: warningKm,
-                warningDays: warningDays
+                warningEngineHours: warningEngineHours
             )
 
             let lastUpdate = mileageEntries
