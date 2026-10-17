@@ -11,6 +11,7 @@ struct TaskDetailView: View {
 
     @AppStorage("warningKm") private var warningKm = 1_000
     @AppStorage("warningDays") private var warningDays = 7
+    @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
 
     @State private var records: [ServiceRecord] = []
     @State private var activeSheet: ActiveSheet?
@@ -36,11 +37,12 @@ struct TaskDetailView: View {
 
                     Divider()
 
-                    LabeledContent("По времени") {
-                        Text(task.intervalMonths > 0 ? "\(task.intervalMonths) мес." : "Не задан")
+                    if task.intervalMonths > 0 {
+                        LabeledContent("По времени") {
+                            Text("\(task.intervalMonths) мес.")
+                        }
+                        Divider()
                     }
-
-                    Divider()
                     LabeledContent("По моточасам") {
                         Text(task.intervalEngineHours > 0 ? String(format: "%.1f мч", task.intervalEngineHours) : "Не задан")
                     }
@@ -53,6 +55,15 @@ struct TaskDetailView: View {
                             Text(Formatters.russianDate(task.lastDate))
                                 .foregroundStyle(.secondary)
                         }
+                    }
+                }
+
+                if let data = task.imageData, let image = UIImage(data: data) {
+                    detailCard(title: "Фото работы") {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 220)
                     }
                 }
 
@@ -168,7 +179,8 @@ struct TaskDetailView: View {
             currentMileage: vehicle.currentMileage,
             warningKm: warningKm,
             warningDays: warningDays,
-            currentEngineHours: vehicle.engineHours
+            currentEngineHours: vehicle.engineHours,
+            warningEngineHours: warningEngineHours
         )
         let safeProgress = task.displayProgress(currentMileage: vehicle.currentMileage, currentEngineHours: vehicle.engineHours)
         let statusColor = task.displayColor(
@@ -296,6 +308,7 @@ struct TaskEditorView: View {
 
     @AppStorage("warningKm") private var warningKm = 1_000
     @AppStorage("warningDays") private var warningDays = 7
+    @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
 
     @State private var title: String
     @State private var intervalKm: String
@@ -305,6 +318,8 @@ struct TaskEditorView: View {
     @State private var lastMileage: String
     @State private var lastDate: Date
     @State private var notes: String
+    @State private var imageData: Data?
+    @State private var photoItem: PhotosPickerItem?
     @State private var errorMessage: String?
 
     init(vehicle: Vehicle, task: MaintenanceTask? = nil) {
@@ -314,10 +329,12 @@ struct TaskEditorView: View {
         _intervalKm = State(initialValue: task.map { $0.intervalKm > 0 ? String($0.intervalKm) : "" } ?? "")
         _intervalMonths = State(initialValue: task.map { $0.intervalMonths > 0 ? String($0.intervalMonths) : "" } ?? "")
         _intervalEngineHours = State(initialValue: task.map { $0.intervalEngineHours > 0 ? String($0.intervalEngineHours) : "" } ?? "")
-        _lastEngineHours = State(initialValue: String(task?.lastEngineHours ?? vehicle.engineHours))
+        let startingHours = task?.lastEngineHours ?? vehicle.engineHours
+        _lastEngineHours = State(initialValue: startingHours > 0 ? String(format: "%.1f", startingHours) : "")
         _lastMileage = State(initialValue: String(task?.lastMileage ?? vehicle.currentMileage))
         _lastDate = State(initialValue: task?.lastDate ?? .now)
         _notes = State(initialValue: task?.notes ?? "")
+        _imageData = State(initialValue: task?.imageData)
     }
 
     private var canSave: Bool {
@@ -340,23 +357,40 @@ struct TaskEditorView: View {
                 }
 
                 Section {
-                    TextField("Километры", text: $intervalKm)
-                        .keyboardType(.numberPad)
-                    TextField("Месяцы", text: $intervalMonths)
-                        .keyboardType(.numberPad)
-                    TextField("Моточасы", text: $intervalEngineHours)
-                        .keyboardType(.decimalPad)
+                    LabeledContent("Километры") {
+                        TextField("Не задано", text: $intervalKm)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("Моточасы") {
+                        TextField("Не задано", text: $intervalEngineHours)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    if intervalMonths != "" || title.trimmingCharacters(in: .whitespacesAndNewlines).uppercased().contains("TÜV") || title.trimmingCharacters(in: .whitespacesAndNewlines).uppercased().contains("HU") {
+                        LabeledContent("Календарный срок, мес.") {
+                            TextField("Не задан", text: $intervalMonths)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                        }
+                    }
                 } header: {
                     Text("Интервал")
                 } footer: {
-                    Text("Можно задать пробег, срок и моточасы. Сработает первое достигнутое условие.")
+                    Text("Для обычных работ используй километры, моточасы или оба условия. Календарный срок доступен для HU/TÜV и ранее созданных записей.")
                 }
 
                 Section("Последний раз выполнено") {
-                    TextField("Пробег", text: $lastMileage)
-                        .keyboardType(.numberPad)
-                    TextField("Моточасы на момент ТО", text: $lastEngineHours)
-                        .keyboardType(.decimalPad)
+                    LabeledContent("Пробег") {
+                        TextField("Пробег", text: $lastMileage)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("Моточасы") {
+                        TextField("Не заданы", text: $lastEngineHours)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                     DatePicker("Дата", selection: $lastDate, displayedComponents: .date)
                 }
 
@@ -364,11 +398,33 @@ struct TaskEditorView: View {
                     TextField("Масло, артикулы, допуски и другое", text: $notes, axis: .vertical)
                         .lineLimit(2...6)
                 }
+                Section("Фото") {
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Label(imageData == nil ? "Прикрепить фото" : "Заменить фото", systemImage: "photo")
+                    }
+                    if let imageData, let image = UIImage(data: imageData) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 160)
+                        Button("Удалить фото", role: .destructive) {
+                            self.imageData = nil
+                            photoItem = nil
+                        }
+                    }
+                }
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
                 }
             }
+            .garageKeyboardDismiss()
             .scrollContentBackground(.hidden)
+            .onChange(of: photoItem) { _, item in
+                Task {
+                    do { imageData = try await item?.loadTransferable(type: Data.self) }
+                    catch { errorMessage = "Не удалось открыть фото: \(error.localizedDescription)" }
+                }
+            }
             .background(Color.garageBackground)
             .navigationTitle(task == nil ? "Новая работа" : "Изменить работу")
             .navigationBarTitleDisplayMode(.inline)
@@ -389,7 +445,8 @@ struct TaskEditorView: View {
         let kmInterval = Int(intervalKm.filter(\.isNumber)) ?? 0
         let monthInterval = Int(intervalMonths.filter(\.isNumber)) ?? 0
         let hourInterval = Double(intervalEngineHours.replacingOccurrences(of: ",", with: ".")) ?? 0
-        let lastHours = Double(lastEngineHours.replacingOccurrences(of: ",", with: ".")) ?? 0
+        let normalizedLastHours = lastEngineHours.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+        let lastHours = normalizedLastHours.isEmpty ? 0.0 : (Double(normalizedLastHours) ?? -1)
         guard hourInterval.isFinite, lastHours.isFinite, hourInterval >= 0, lastHours >= 0 else {
             errorMessage = "Неверное значение моточасов."
             return
@@ -406,6 +463,7 @@ struct TaskEditorView: View {
             task.lastMileage = mileage
             task.lastDate = lastDate
             task.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            task.imageData = imageData
             savedTask = task
         } else {
             let newTask = MaintenanceTask(
@@ -417,7 +475,8 @@ struct TaskEditorView: View {
                 lastEngineHours: lastHours,
                 lastMileage: mileage,
                 lastDate: lastDate,
-                notes: notes.trimmingCharacters(in: .whitespacesAndNewlines)
+                notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
+                imageData: imageData
             )
             modelContext.insert(newTask)
             savedTask = newTask
