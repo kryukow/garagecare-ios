@@ -62,11 +62,19 @@ enum MaintenanceIcons {
     /// Ordered from specific subjects to generic ones: "масляный фильтр" must not become "масло".
     /// No network, AI service or user data is needed for recognition.
     static func suggested(for title: String) -> String {
-        let text = title.folding(options: [.caseInsensitive, .diacriticInsensitive],
-                                 locale: Locale(identifier: "ru_RU")).lowercased()
-        func has(_ needles: String...) -> Bool { needles.contains { text.contains($0) } }
-        if has("салонн", "cabin filter", "pollenfilter", "innenraumfilter") { return "cabinFilter" }
-        if has("газовый фильтр", "фильтр гбо", "фильтр газа", "lpg filter", "gasfilter") { return "lpgFilter" }
+        let locale = Locale(identifier: "ru_RU")
+        func normalized(_ value: String) -> String {
+            value.folding(options: [.caseInsensitive, .diacriticInsensitive],
+                          locale: locale).lowercased()
+        }
+        let text = normalized(title)
+        // Normalize BOTH sides: diacritic folding also changes Cyrillic "й" to "и".
+        func has(_ needles: String...) -> Bool {
+            needles.contains { text.contains(normalized($0)) }
+        }
+        if has("cabin filter", "pollenfilter", "innenraumfilter") ||
+           (has("салон", "cabin") && has("фильтр", "filter")) { return "cabinFilter" }
+        if (has("газ", "гбо", "lpg", "cng", "gas") && has("фильтр", "filter")) { return "lpgFilter" }
         if has("маслян", "масляный фильтр", "oil filter", "olfilter") { return "oilFilter" }
         if has("воздушн", "air filter", "luftfilter") { return "airFilter" }
         if has("топливн", "fuel filter", "kraftstofffilter", "dieselfilter") &&
