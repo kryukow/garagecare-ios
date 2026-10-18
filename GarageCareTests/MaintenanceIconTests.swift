@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import XCTest
 @testable import GarageCare
 
@@ -35,6 +36,48 @@ final class MaintenanceIconTests: XCTestCase {
         XCTAssertEqual(MaintenanceIcons.resolved(title: "Масло", manualKey: nil), "oil")
         XCTAssertEqual(MaintenanceIcons.resolved(title: "Масло", manualKey: "missing-key"), "oil")
         XCTAssertEqual(Set(MaintenanceIcons.catalog.map(\.id)).count, MaintenanceIcons.catalog.count)
+    }
+
+    func testAllLegacyKeysResolveToSupportedCategories() {
+        XCTAssertEqual(MaintenanceIcons.catalog.count, 33)
+        XCTAssertEqual(MaintenanceIcons.categories.count, 12)
+        XCTAssertEqual(Set(MaintenanceIcons.categories.map(\.id)).count, 12)
+        XCTAssertEqual(Set(MaintenanceIcons.categories.map(\.symbolName)).count, 12)
+        for item in MaintenanceIcons.catalog {
+            let category = MaintenanceIcons.category(for: item.id)
+            XCTAssertTrue(
+                MaintenanceIcons.categories.contains(where: { $0.id == category.id }),
+                "No category for \(item.id)"
+            )
+        }
+    }
+
+    func testSFNamesAreAvailableOnSupportedIOS() {
+        for category in MaintenanceIcons.categories {
+            XCTAssertNotNil(
+                UIImage(systemName: category.symbolName),
+                "SF Symbol \(category.symbolName) is missing on iOS \(UIDevice.current.systemVersion)"
+            )
+        }
+    }
+
+    func testManualLegacyIconAndNewCategoriesPreserveOverrides() {
+        XCTAssertEqual(MaintenanceIcons.categoryID(for: "oilFilter"), "filters")
+        XCTAssertEqual(MaintenanceIcons.categoryID(for: "lpgFilter"), "filters")
+        XCTAssertEqual(MaintenanceIcons.categoryID(for: "spark"), "electrical")
+        XCTAssertEqual(MaintenanceIcons.categoryID(for: "brakeDiscs"), "brakes")
+        XCTAssertEqual(MaintenanceIcons.categoryID(for: "timingChain"), "transmission")
+        XCTAssertEqual(MaintenanceIcons.categoryID(for: "coolant"), "fluids")
+        XCTAssertEqual(MaintenanceIcons.categoryID(for: "lpg"), "fuel")
+        XCTAssertEqual(MaintenanceIcons.categoryID(for: "unrecognized"), "other")
+        for category in MaintenanceIcons.categories {
+            XCTAssertNotNil(MaintenanceIcons.descriptor(for: category.representativeKey))
+            XCTAssertEqual(
+                MaintenanceIcons.categoryID(for: category.representativeKey),
+                category.id
+            )
+        }
+        XCTAssertEqual(MaintenanceIcons.resolved(title: "Масло", manualKey: "spark"), "spark")
     }
 
     func testIconKeySurvivesJSONAndOlderBackupsRemainReadable() throws {

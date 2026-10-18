@@ -378,9 +378,9 @@ struct TaskEditorView: View {
                         HStack(spacing: 12) {
                             MaintenanceGlyphTile(key: MaintenanceIcons.resolved(title: title, manualKey: iconKey), side: 45)
                             VStack(alignment: .leading, spacing: 3) {
-                                Text("Иконка работы").foregroundStyle(.primary)
+                                Text("Символ работы").foregroundStyle(.primary)
                                 Text(iconKey == nil ? "Автоматически по названию" :
-                                     (MaintenanceIcons.descriptor(for: iconKey ?? "")?.title ?? "Другая работа"))
+                                     MaintenanceIcons.category(for: iconKey ?? "other").title)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
