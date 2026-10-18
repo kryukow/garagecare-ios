@@ -139,9 +139,9 @@ struct MaintenanceGlyphTile: View {
 
 private enum MaintenanceGlyphPainter {
     static func paint(_ key: String, context c: inout GraphicsContext, color: Color) {
-        let white = Color.white.opacity(0.91)
+        let white = Color.primary.opacity(0.91)
         let accent = color
-        func stroke(_ p: Path, _ col: Color = .white, _ width: CGFloat = 4) {
+        func stroke(_ p: Path, _ col: Color = .primary, _ width: CGFloat = 4) {
             c.stroke(p, with: .color(col), style: StrokeStyle(lineWidth: width,
                                                              lineCap: .round, lineJoin: .round))
         }
@@ -161,14 +161,14 @@ private enum MaintenanceGlyphPainter {
             }
             return p
         }
-        func l(_ values: [CGFloat], _ col: Color = .white, _ width: CGFloat = 4) {
+        func l(_ values: [CGFloat], _ col: Color = .primary, _ width: CGFloat = 4) {
             var pts: [CGPoint] = []
             for i in stride(from: 0, to: values.count - 1, by: 2) {
                 pts.append(CGPoint(x: values[i], y: values[i + 1]))
             }
             stroke(poly(pts), col, width)
         }
-        func circle(_ x: CGFloat, _ y: CGFloat, _ radius: CGFloat, _ col: Color = .white, _ width: CGFloat = 4) {
+        func circle(_ x: CGFloat, _ y: CGFloat, _ radius: CGFloat, _ col: Color = .primary, _ width: CGFloat = 4) {
             stroke(oval(x-radius, y-radius, radius*2, radius*2), col, width)
         }
         func dots(_ centers: [(CGFloat, CGFloat)], _ rad: CGFloat, _ col: Color) {
@@ -374,7 +374,7 @@ struct MaintenanceIconPicker: View {
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()
-                            if selection == nil { Image(systemName: "checkmark.circle.fill").foregroundStyle(.garageGreen) }
+                            if selection == nil { Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.garageGreen) }
                         }
                         .padding(12)
                         .garageCard(cornerRadius: 17)
@@ -401,7 +401,7 @@ struct MaintenanceIconPicker: View {
                                                 MaintenanceGlyphTile(key: item.id, side: 57)
                                                 if selection == item.id {
                                                     Image(systemName: "checkmark.circle.fill")
-                                                        .foregroundStyle(.garageGreen)
+                                                        .foregroundStyle(Color.garageGreen)
                                                         .background(.black, in: Circle())
                                                         .offset(x: 7, y: -5)
                                                 }
