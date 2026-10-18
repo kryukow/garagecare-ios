@@ -89,6 +89,8 @@ final class MaintenanceTask {
     var notes: String
     @Attribute(.externalStorage) var imageData: Data?
     @Attribute(.externalStorage) var extraPhotoData: Data? = nil
+    /// nil means automatic icon inference. Additive optional SwiftData field.
+    var iconKey: String? = nil
     var createdAt: Date
 
     init(
@@ -104,11 +106,13 @@ final class MaintenanceTask {
         notes: String = "",
         imageData: Data? = nil,
         createdAt: Date = .now,
-        extraPhotoData: Data? = nil
+        extraPhotoData: Data? = nil,
+        iconKey: String? = nil
     ) {
         self.id = id
         self.vehicleID = vehicleID
         self.extraPhotoData = extraPhotoData
+        self.iconKey = iconKey
         self.title = title
         self.intervalKm = intervalKm
         self.intervalMonths = intervalMonths

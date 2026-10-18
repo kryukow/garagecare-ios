@@ -440,6 +440,7 @@ private struct TaskCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 11) {
             HStack(alignment: .top, spacing: 8) {
+                MaintenanceGlyphTile(key: MaintenanceIcons.resolved(title: task.title, manualKey: task.iconKey), color: statusColor, side: 36)
                 Text(task.title)
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
@@ -537,6 +538,7 @@ private struct TaskListRow: View {
 
     var body: some View {
         HStack(spacing: 13) {
+            MaintenanceGlyphTile(key: MaintenanceIcons.resolved(title: task.title, manualKey: task.iconKey), color: color, side: 44)
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Text(task.title)

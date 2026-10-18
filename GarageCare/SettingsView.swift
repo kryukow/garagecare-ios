@@ -370,7 +370,8 @@ struct SettingsView: View {
                     notes: value.notes,
                     imageData: value.imageData,
                     createdAt: value.createdAt,
-                    extraPhotoData: value.extraPhotoData
+                    extraPhotoData: value.extraPhotoData,
+                    iconKey: value.iconKey
                 )
             )
         }

@@ -241,10 +241,22 @@ private struct VehicleCard: View {
                 }
 
             VStack(alignment: .leading, spacing: 9) {
-                Text(vehicle.displayName.isEmpty ? "Автомобиль" : vehicle.displayName)
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
+                HStack(alignment: .top, spacing: 6) {
+                    Text(vehicle.displayName.isEmpty ? "Автомобиль" : vehicle.displayName)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Spacer(minLength: 2)
+                    if vehicle.year > 0 {
+                        Text(String(vehicle.year))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(0.055), in: Capsule())
+                    }
+                }
 
                 HStack(spacing: 7) {
                     Image(systemName: "road.lanes")
@@ -255,15 +267,6 @@ private struct VehicleCard: View {
                         .monospacedDigit()
                 }
                 .font(.subheadline.weight(.medium))
-
-                if vehicle.year > 0 {
-                    Text(String(vehicle.year))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.white.opacity(0.055), in: Capsule())
-                }
 
                 GarageDeadlineLabels(vehicle: vehicle)
             }
@@ -333,11 +336,7 @@ private struct UpcomingWorkRow: View {
 
     var body: some View {
         HStack(spacing: 13) {
-            Image(systemName: state == .overdue ? "exclamationmark.wrench.fill" : "wrench.and.screwdriver.fill")
-                .font(.headline)
-                .foregroundStyle(color)
-                .frame(width: 44, height: 44)
-                .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+            MaintenanceGlyphTile(key: MaintenanceIcons.resolved(title: item.task.title, manualKey: item.task.iconKey), color: color, side: 44)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.task.title)

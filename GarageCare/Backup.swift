@@ -71,6 +71,7 @@ struct TaskSnapshot: Codable {
     let notes: String
     let imageData: Data?
     let extraPhotoData: Data?
+    let iconKey: String?
     let createdAt: Date
 
     init(_ value: MaintenanceTask) {
@@ -86,6 +87,7 @@ struct TaskSnapshot: Codable {
         notes = value.notes
         imageData = value.imageData
         extraPhotoData = value.extraPhotoData
+        iconKey = value.iconKey
         createdAt = value.createdAt
     }
 }

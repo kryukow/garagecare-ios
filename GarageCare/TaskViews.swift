@@ -189,6 +189,7 @@ struct TaskDetailView: View {
 
         return VStack(alignment: .leading, spacing: 15) {
             HStack(alignment: .center) {
+                MaintenanceGlyphTile(key: MaintenanceIcons.resolved(title: task.title, manualKey: task.iconKey), color: statusColor, side: 39)
                 GarageStatusPill(
                     title: state.title.uppercased(),
                     color: statusColor,
@@ -321,11 +322,14 @@ struct TaskEditorView: View {
     @State private var useEngineHours: Bool
     @State private var useCalendar: Bool
     @State private var errorMessage: String?
+    @State private var iconKey: String?
+    @State private var showingIconPicker = false
 
     init(vehicle: Vehicle, task: MaintenanceTask? = nil) {
         self.vehicle = vehicle
         self.task = task
         _title = State(initialValue: task?.title ?? "")
+        _iconKey = State(initialValue: task?.iconKey)
         _useEngineHours = State(initialValue: (task?.intervalEngineHours ?? 0) > 0)
         _useCalendar = State(initialValue: (task?.intervalMonths ?? 0) > 0)
         _intervalKm = State(initialValue: task.map { $0.intervalKm > 0 ? String($0.intervalKm) : "" } ?? "")
@@ -368,6 +372,24 @@ struct TaskEditorView: View {
             Form {
                 Section("Работа") {
                     TextField("Название", text: $title)
+                    Button {
+                        showingIconPicker = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            MaintenanceGlyphTile(key: MaintenanceIcons.resolved(title: title, manualKey: iconKey), side: 45)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Иконка работы").foregroundStyle(.primary)
+                                Text(iconKey == nil ? "Автоматически по названию" :
+                                     (MaintenanceIcons.descriptor(for: iconKey ?? "")?.title ?? "Другая работа"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("maintenance.icon.open")
                 }
 
                 Section {
@@ -449,6 +471,9 @@ struct TaskEditorView: View {
                         .disabled(!canSave)
                 }
             }
+            .sheet(isPresented: $showingIconPicker) {
+                MaintenanceIconPicker(selection: $iconKey, title: title)
+            }
         }
     }
 
@@ -467,6 +492,7 @@ struct TaskEditorView: View {
         let savedTask: MaintenanceTask
         if let task {
             task.title = cleanTitle
+            task.iconKey = iconKey
             task.intervalKm = kmInterval
             task.intervalMonths = monthInterval
             task.intervalEngineHours = hourInterval
@@ -489,7 +515,8 @@ struct TaskEditorView: View {
                 lastDate: lastDate,
                 notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
                 imageData: imageData,
-                extraPhotoData: extraPhotoData
+                extraPhotoData: extraPhotoData,
+                iconKey: iconKey
             )
             modelContext.insert(newTask)
             savedTask = newTask

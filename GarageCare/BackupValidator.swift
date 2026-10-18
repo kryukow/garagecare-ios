@@ -38,7 +38,8 @@ enum BackupValidator {
             vehicleIDs.contains($0.vehicleID) &&
             $0.intervalKm >= 0 && $0.intervalMonths >= 0 && $0.lastMileage >= 0 &&
             ($0.intervalEngineHours ?? 0).isFinite && ($0.intervalEngineHours ?? 0) >= 0 &&
-            ($0.lastEngineHours ?? 0).isFinite && ($0.lastEngineHours ?? 0) >= 0
+            ($0.lastEngineHours ?? 0).isFinite && ($0.lastEngineHours ?? 0) >= 0 &&
+            ($0.iconKey.map { MaintenanceIcons.descriptor(for: $0) != nil } ?? true)
         }) else {
             throw BackupValidationError.invalid("Регламент ссылается на отсутствующий автомобиль или содержит недопустимые значения.")
         }
