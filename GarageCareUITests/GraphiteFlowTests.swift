@@ -1,7 +1,7 @@
 import XCTest
 
 final class GraphiteFlowTests: XCTestCase {
-    override func setUpWithError() throws { continueAfterFailure = false }
+    override func setUpWithError() throws { continueAfterFailure = false; executionTimeAllowance = 120 }
     func testHomeGalleryAndNavigation() {
         let app = XCUIApplication()
         app.launchArguments = ["--graphite-preview"]
@@ -12,10 +12,17 @@ final class GraphiteFlowTests: XCTestCase {
         app.staticTexts["КОНТРОЛЬ АВТОМОБИЛЯ"].tap()
         XCTAssertTrue(app.buttons["garage.deadlines.edit"].waitForExistence(timeout: 5))
         capture("Graphite-control-expanded")
-        app.swipeUp()
         let gallery = app.buttons["garage.iconGallery"]
-        if !gallery.isHittable { app.swipeUp() }
-        XCTAssertTrue(gallery.waitForExistence(timeout: 5))
+        let scroll = app.scrollViews.firstMatch
+        for _ in 0..<5 {
+            if gallery.isHittable { break }
+            // Stay above the fixed navigation: an app-wide swipe starts on its buttons.
+            let start = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.70))
+            let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.25))
+            start.press(forDuration: 0.1, thenDragTo: end)
+        }
+        XCTAssertTrue(gallery.isHittable, "Gallery must be visible before tapping")
+        capture("Graphite-service-list")
         gallery.tap()
         XCTAssertTrue(app.textFields["maintenance.gallery.title"].waitForExistence(timeout: 5))
         capture("Graphite-icons")

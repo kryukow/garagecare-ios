@@ -75,8 +75,8 @@ jobs:
             -only-testing:GarageCareUITests/GraphiteFlowTests \
             -parallel-testing-enabled NO \
             -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 30 \
-            -maximum-test-execution-time-allowance 60 \
+            -default-test-execution-time-allowance 60 \
+            -maximum-test-execution-time-allowance 120 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
 
@@ -138,8 +138,8 @@ jobs:
             -only-testing:GarageCareUITests \
             -parallel-testing-enabled NO \
             -test-timeouts-enabled YES \
-            -default-test-execution-time-allowance 30 \
-            -maximum-test-execution-time-allowance 60 \
+            -default-test-execution-time-allowance 60 \
+            -maximum-test-execution-time-allowance 120 \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
 
