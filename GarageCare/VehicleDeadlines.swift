@@ -55,67 +55,40 @@ struct GarageDeadlineLabels: View {
 struct VehicleDeadlinesCard: View {
     let vehicle: Vehicle
     let edit: () -> Void
-
+    @State private var expanded = false
     var body: some View {
-        Button(action: edit) {
+        DisclosureGroup(isExpanded: $expanded) {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("СРОКИ И ПЛАТЕЖИ")
-                        .font(.caption.weight(.bold))
-                        .tracking(1.1)
-                        .foregroundStyle(Color.garageGreen)
-                    Spacer()
-                    Image(systemName: "square.and.pencil")
-                        .foregroundStyle(Color.garageGreen)
+                if let date = vehicle.huDueDate {
+                    Text("HU / TÜV · " + GarageDeadline.countdown(to: date))
                 }
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "checkmark.seal")
-                        .frame(width: 23)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("HU / TÜV").fontWeight(.semibold)
-                        if let date = vehicle.huDueDate {
-                            Text(GarageDeadline.countdown(to: date))
-                                .foregroundStyle(GarageDeadline.statusColor(to: date, warningDays: 30))
-                            Text("До \(Formatters.russianDate(date))")
-                                .font(.caption).foregroundStyle(.secondary)
-                        } else {
-                            Text("Дата не задана").foregroundStyle(.secondary)
-                        }
-                    }
-                    Spacer(minLength: 0)
+                if let date = vehicle.insuranceNextDebitDate {
+                    Text("Страховка · " + GarageDeadline.countdown(to: date))
                 }
-                Divider()
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "creditcard")
-                        .frame(width: 23)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Страховка").fontWeight(.semibold)
-                        if let date = vehicle.insuranceNextDebitDate {
-                            Text(GarageDeadline.countdown(to: date))
-                                .foregroundStyle(GarageDeadline.statusColor(to: date, warningDays: 7))
-                            Text("Ожидаемое списание: \(Formatters.russianDate(date))")
-                                .font(.caption).foregroundStyle(.secondary)
-                            if vehicle.insuranceCost > 0 {
-                                Text(vehicle.insuranceCost, format: .currency(code: vehicle.insuranceCurrency))
-                                    .font(.caption.weight(.semibold))
-                            }
-                        } else {
-                            Text("Дата не задана").foregroundStyle(.secondary)
-                        }
-                    }
-                    Spacer(minLength: 0)
+                if vehicle.insuranceCost > 0 {
+                    Text(vehicle.insuranceCost, format: .currency(code: vehicle.insuranceCurrency))
                 }
-                Text("Нажми, чтобы указать или изменить даты")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .font(.subheadline)
-            .foregroundStyle(.primary)
-            .padding(16)
-            .garageCard(cornerRadius: 20)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Сроки HU и страховые списания. Изменить")
+                Button(action: edit) { Label("Изменить сроки и платежи", systemImage: "pencil") }
+                    .frame(minHeight: 44)
+            }.font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 12)
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("КОНТРОЛЬ АВТОМОБИЛЯ").font(.system(size: 9, design: .monospaced)).tracking(1.2).foregroundStyle(.secondary)
+                HStack(alignment: .top, spacing: 14) {
+                    deadline("HU / TÜV", vehicle.huDueDate)
+                    Rectangle().fill(Color.garageStroke).frame(width: 0.5, height: 26)
+                    deadline("СТРАХОВКА", vehicle.insuranceNextDebitDate)
+                }
+            }.padding(.vertical, 2)
+        }.tint(.garageGreen).padding(14).garageCard(cornerRadius: 17)
+            .animation(.easeInOut(duration: 0.25), value: expanded)
+    }
+    private func deadline(_ title: String, _ date: Date?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.system(size: 8, design: .monospaced)).tracking(0.7).foregroundStyle(.secondary)
+            Text(date.map { $0.formatted(.dateTime.day().month(.abbreviated).year()) } ?? "Не задано")
+                .font(.caption.monospaced()).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
+        }.frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

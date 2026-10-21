@@ -4,6 +4,14 @@ import XCTest
 @testable import GarageCare
 
 final class MaintenanceIconTests: XCTestCase {
+    func testEveryPartHasOriginalArtwork() {
+        for icon in MaintenanceIcons.catalog {
+            let image = UIImage(named: "Maintenance-" + icon.id)
+            XCTAssertNotNil(image, icon.id)
+            XCTAssertGreaterThan(image?.size.width ?? 0, 20, icon.id)
+        }
+    }
+
     func testSpecificPartWinsOverGenericKeyword() {
         XCTAssertEqual(MaintenanceIcons.suggested(for: "Замена масляного фильтра"), "oilFilter")
         XCTAssertEqual(MaintenanceIcons.suggested(for: "Воздушный фильтр"), "airFilter")

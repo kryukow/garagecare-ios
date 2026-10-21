@@ -144,6 +144,9 @@ jobs:
       - name: Извлечь снимки экранов UI-тестов
         if: always()
         run: |
+          if [ -d "$RUNNER_TEMP/GarageCareTests.xcresult" ]; then
+            xcrun xcresulttool export attachments --path "$RUNNER_TEMP/GarageCareTests.xcresult" --output-path "$RUNNER_TEMP/screenshots/unit"
+          fi
           if [ -d "$RUNNER_TEMP/GarageCareUITests.xcresult" ]; then
             xcrun xcresulttool export attachments --path "$RUNNER_TEMP/GarageCareUITests.xcresult" --output-path "$RUNNER_TEMP/screenshots"
           fi

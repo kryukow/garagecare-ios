@@ -25,7 +25,7 @@ enum GarageTokens {
 
     enum Size {
         static let minimumTouchTarget: CGFloat = 44
-        static let progressBarHeight: CGFloat = 8
+        static let progressBarHeight: CGFloat = 2
         static let statusDot: CGFloat = 7
     }
 

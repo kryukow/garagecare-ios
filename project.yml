@@ -7,8 +7,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    CURRENT_PROJECT_VERSION: 17
-    MARKETING_VERSION: 1.4.10
+    CURRENT_PROJECT_VERSION: 18
+    MARKETING_VERSION: 1.5.0
     DEVELOPMENT_TEAM: ""
 targets:
   GarageCare:
@@ -22,6 +22,7 @@ targets:
         PRODUCT_NAME: GarageCare
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        INFOPLIST_KEY_CADisableMinimumFrameDurationOnPhone: YES
         INFOPLIST_KEY_CFBundleDisplayName: "Мой гараж"
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES

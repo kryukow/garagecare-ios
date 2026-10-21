@@ -31,7 +31,7 @@ struct SettingsView: View {
     @AppStorage("warningDays") private var warningDays = 7
     @AppStorage("warningEngineHours") private var warningEngineHours = 10.0
     @AppStorage("mileageReminderDays") private var mileageReminderDays = 30
-    @AppStorage("appearanceMode") private var appearanceMode = AppAppearance.system.rawValue
+    @AppStorage("appearanceMode") private var appearanceMode = AppAppearance.dark.rawValue
 
     @State private var notificationsAllowed = false
     @State private var exportDocument = BackupDocument()
@@ -155,6 +155,11 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("Иконки обслуживания") {
+                    NavigationLink { GarageIconGallery() } label: {
+                        Label("Иконки работ · тест набора", systemImage: "square.grid.3x3")
+                    }
+                }
                 Section("О приложении") {
                     LabeledContent("Название", value: "Мой гараж")
                     LabeledContent("Версия", value: appVersion)

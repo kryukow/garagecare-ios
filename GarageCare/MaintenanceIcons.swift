@@ -158,15 +158,15 @@ enum MaintenanceIcons {
 }
 
 
-/// Drawn by iOS, not custom paths or generated PNGs. The rendering weight,
-/// corner geometry, and baseline are supplied consistently by SF Symbols.
+/// Original template artwork; stable part keys remain compatible with backups.
 struct MaintenanceGlyph: View {
     let key: String
     var color: Color = .garageGreen
 
     var body: some View {
-        Image(systemName: MaintenanceIcons.category(for: key).symbolName)
-            .font(.system(size: 25, weight: .semibold))
+        Image("Maintenance-" + (MaintenanceIcons.descriptor(for: key) == nil ? "other" : key))
+            .renderingMode(.template)
+            .resizable().scaledToFit().frame(width: 28, height: 28)
             .symbolRenderingMode(.hierarchical)
             .foregroundStyle(color)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -180,7 +180,8 @@ struct MaintenanceGlyphTile: View {
     var side: CGFloat = 44
 
     var body: some View {
-        Image(systemName: MaintenanceIcons.category(for: key).symbolName)
+        Image("Maintenance-" + (MaintenanceIcons.descriptor(for: key) == nil ? "other" : key))
+            .renderingMode(.template)
             .resizable()
             .scaledToFit()
             .symbolRenderingMode(.hierarchical)
@@ -231,22 +232,22 @@ struct MaintenanceIconPicker: View {
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("maintenance.icon.auto")
 
-                    Text("КАТЕГОРИИ ОБСЛУЖИВАНИЯ")
+                    Text("ДЕТАЛИ И ОБСЛУЖИВАНИЕ")
                         .font(.caption.weight(.bold))
                         .tracking(1)
                         .foregroundStyle(.secondary)
 
                     LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(MaintenanceIcons.categories) { item in
+                        ForEach(MaintenanceIcons.catalog) { item in
                             Button {
-                                selection = item.representativeKey
+                                selection = item.id
                                 dismiss()
                             } label: {
                                 VStack(spacing: 9) {
                                     ZStack(alignment: .topTrailing) {
-                                        MaintenanceGlyphTile(key: item.representativeKey, side: 58)
+                                        MaintenanceGlyphTile(key: item.id, side: 58)
                                         if let selection,
-                                           MaintenanceIcons.categoryID(for: selection) == item.id {
+                                           selection == item.id {
                                             Image(systemName: "checkmark.circle.fill")
                                                 .foregroundStyle(Color.garageGreen)
                                                 .background(Color.black, in: Circle())

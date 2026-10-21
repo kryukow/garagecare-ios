@@ -10,13 +10,20 @@ struct GarageView: View {
     @AppStorage("warningKm") private var warningKm = 1_000
     @AppStorage("warningDays") private var warningDays = 7
 
+    @AppStorage("graphiteSelectedVehicle") private var selectedVehicleID = ""
+    @State private var showingGallery = false
+    @State private var editingMileage = false
+    @State private var editingDeadlines = false
     @State private var showingAddVehicle = false
+    private var selectedVehicle: Vehicle? { vehicles.first { $0.id.uuidString == selectedVehicleID } ?? vehicles.first }
+
     @State private var vehicleToDelete: Vehicle?
     @State private var saveError: String?
 
     private var upcomingWorks: [UpcomingWork] {
         tasks.compactMap { task in
-            guard task.intervalKm > 0 || task.intervalMonths > 0 || task.intervalEngineHours > 0,
+            guard (selectedVehicle == nil || task.vehicleID == selectedVehicle?.id),
+                  task.intervalKm > 0 || task.intervalMonths > 0 || task.intervalEngineHours > 0,
                   let vehicle = vehicles.first(where: { $0.id == task.vehicleID }) else {
                 return nil
             }
@@ -104,18 +111,32 @@ struct GarageView: View {
                             .padding(.horizontal, 2)
                             .padding(.bottom, 2)
 
-                            ForEach(vehicles) { vehicle in
-                                NavigationLink {
-                                    VehicleDetailView(vehicle: vehicle)
-                                } label: {
-                                    VehicleCard(vehicle: vehicle)
-                                }
-                                .buttonStyle(.plain)
-                                .contextMenu {
-                                    Button("Удалить", role: .destructive) {
-                                        vehicleToDelete = vehicle
+                            if let vehicle = selectedVehicle {
+                                HStack {
+                                    Menu {
+                                        ForEach(vehicles) { car in
+                                            Button(car.displayName) { selectedVehicleID = car.id.uuidString }
+                                        }
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            Text(vehicle.displayName).font(.system(size: 27, weight: .light))
+                                            if vehicles.count > 1 { Image(systemName: "chevron.down").font(.caption2) }
+                                        }.foregroundStyle(.primary)
                                     }
+                                    Spacer()
+                                    NavigationLink { VehicleDetailView(vehicle: vehicle) } label: {
+                                        Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44)
+                                    }.accessibilityLabel("Паспорт и обслуживание автомобиля")
                                 }
+                                .contextMenu { Button("Удалить автомобиль", role: .destructive) { vehicleToDelete = vehicle } }
+                                GarageRoadScene().id(vehicle.id)
+                                HStack {
+                                    Text("• ЛИЧНЫЙ АВТОПАРК")
+                                    Spacer()
+                                    if vehicle.year > 0 { Text(String(vehicle.year)) }
+                                }.font(.system(size: 9, design: .monospaced)).tracking(1.1).foregroundStyle(.secondary)
+                                VehicleDeadlinesCard(vehicle: vehicle) { editingDeadlines = true }
+                                GarageMileageSlab(vehicle: vehicle) { editingMileage = true }
                             }
 
                             if !upcomingWorks.isEmpty {
@@ -146,8 +167,13 @@ struct GarageView: View {
                                     .buttonStyle(.plain)
                                 }
                             }
+                            Button { showingGallery = true } label: {
+                                Label("Иконки работ · тест набора", systemImage: "square.grid.3x3")
+                                    .font(.caption.monospaced()).foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, minHeight: 48)
+                            }.buttonStyle(.plain)
                         }
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 20)
                         .padding(.top, 12)
                         .padding(.bottom, 28)
                     }
@@ -155,6 +181,7 @@ struct GarageView: View {
                 }
             }
             .navigationTitle("Мой гараж")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -165,6 +192,13 @@ struct GarageView: View {
                     }
                     .accessibilityLabel("Добавить автомобиль")
                 }
+            }
+            .sheet(isPresented: $showingGallery) { GarageIconGallery() }
+            .sheet(isPresented: $editingMileage) {
+                if let vehicle = selectedVehicle { UpdateMileageView(vehicle: vehicle, tasks: tasks.filter { $0.vehicleID == vehicle.id }) }
+            }
+            .sheet(isPresented: $editingDeadlines) {
+                if let vehicle = selectedVehicle { VehicleDeadlinesEditor(vehicle: vehicle) }
             }
             .sheet(isPresented: $showingAddVehicle) {
                 AddVehicleView()
@@ -376,19 +410,9 @@ private struct UpcomingWorkRow: View {
                 .font(.caption.bold())
                 .foregroundStyle(.tertiary)
         }
-        .padding(14)
-        .background(
-            LinearGradient(
-                colors: [color.opacity(0.07), Color.garageSurface],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 19, style: .continuous)
-                .stroke(color.opacity(0.13), lineWidth: 1)
-        }
+        .padding(.vertical, 18)
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.garageStroke).frame(height: 0.5) }
+
     }
 }
 

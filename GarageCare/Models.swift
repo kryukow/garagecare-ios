@@ -453,8 +453,8 @@ extension Color {
 
     static var garageGreen: Color {
         adaptive(
-            light: UIColor(red: 0.00, green: 0.478, blue: 0.208, alpha: 1),
-            dark: UIColor(red: 0.18, green: 0.94, blue: 0.43, alpha: 1)
+            light: UIColor(red: 0.25, green: 0.27, blue: 0.29, alpha: 1),
+            dark: UIColor(red: 0.79, green: 0.80, blue: 0.82, alpha: 1)
         )
     }
 
@@ -488,20 +488,20 @@ extension Color {
 
     static var garageBackground: Color {
         adaptive(
-            light: UIColor(red: 0.945, green: 0.963, blue: 0.952, alpha: 1),
-            dark: UIColor(red: 0.035, green: 0.047, blue: 0.057, alpha: 1)
+            light: UIColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1),
+            dark: UIColor(red: 0.033, green: 0.035, blue: 0.038, alpha: 1)
         )
     }
     static var garageSurface: Color {
         adaptive(
-            light: UIColor(red: 0.985, green: 0.992, blue: 0.988, alpha: 1),
-            dark: UIColor(red: 0.075, green: 0.094, blue: 0.108, alpha: 1)
+            light: UIColor(red: 0.985, green: 0.985, blue: 0.985, alpha: 1),
+            dark: UIColor(red: 0.075, green: 0.078, blue: 0.082, alpha: 1)
         )
     }
     static var garageSurfaceRaised: Color {
         adaptive(
-            light: UIColor(red: 0.91, green: 0.94, blue: 0.92, alpha: 1),
-            dark: UIColor(red: 0.095, green: 0.118, blue: 0.135, alpha: 1)
+            light: UIColor(red: 0.91, green: 0.92, blue: 0.93, alpha: 1),
+            dark: UIColor(red: 0.105, green: 0.109, blue: 0.115, alpha: 1)
         )
     }
     static var garageStroke: Color {
@@ -515,34 +515,9 @@ extension Color {
         if state == .notConfigured { return Color.secondary }
         if state == .overdue { return .garageRed }
 
-        let p = min(max(progress.isFinite ? progress : 0, 0), 1)
-        let hue: Double
+        if state == .soon { return .garageOrange }
+        return .garageGreen
 
-        switch p {
-        case ..<0.50:
-            hue = 0.36 - (p / 0.50) * 0.07
-        case ..<0.70:
-            hue = 0.29 - ((p - 0.50) / 0.20) * 0.15
-        case ..<0.85:
-            hue = 0.14 - ((p - 0.70) / 0.15) * 0.08
-        default:
-            hue = max(0, 0.06 - ((p - 0.85) / 0.15) * 0.06)
-        }
-
-        return Color(
-            uiColor: UIColor { traits in
-                // Keep the vivid spectrum in dark mode. In light mode the
-                // same hue progression is darkened enough for AA text contrast
-                // against GarageCare's light surfaces.
-                let brightness: CGFloat = traits.userInterfaceStyle == .dark ? 0.97 : 0.50
-                return UIColor(
-                    hue: CGFloat(hue),
-                    saturation: 0.88,
-                    brightness: brightness,
-                    alpha: 1
-                )
-            }
-        )
     }
 }
 

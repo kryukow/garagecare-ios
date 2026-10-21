@@ -9,7 +9,7 @@ struct VehicleDetailView: View {
 
     @AppStorage("warningKm") private var warningKm = 1_000
     @AppStorage("warningDays") private var warningDays = 7
-    @AppStorage("taskLayoutMode") private var taskLayoutMode = "grid"
+    @AppStorage("taskLayoutMode") private var taskLayoutMode = "list"
     @AppStorage("taskListSortMode") private var taskListSortMode = TaskListSortMode.urgency.rawValue
 
     private enum ActiveModal: String, Identifiable {
@@ -261,141 +261,40 @@ private struct VehicleHero: View {
     let vehicle: Vehicle
     let onPhotoTap: () -> Void
     let onMileageTap: () -> Void
-
     var body: some View {
-        VStack(spacing: 0) {
-            Button(action: onPhotoTap) {
-                ZStack(alignment: .topLeading) {
-                    vehicleImage
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 218)
-                        .clipped()
-
-                    // Text is readable at the top, while the bottom blends
-                    // directly into the mileage area without a dividing line.
-                    LinearGradient(
-                        stops: [
-                            .init(color: .black.opacity(0.64), location: 0),
-                            .init(color: .black.opacity(0.18), location: 0.40),
-                            .init(color: .black.opacity(0.03), location: 0.62),
-                            .init(color: .black.opacity(0.93), location: 1)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-
-                    HStack(alignment: .top, spacing: 10) {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(vehicle.displayName.isEmpty ? "Автомобиль" : vehicle.displayName)
-                                .font(.title2.bold())
-                                .foregroundStyle(.white)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.7)
-
-                            HStack(spacing: 9) {
-                                if vehicle.year > 0 {
-                                    Text(String(vehicle.year))
-                                }
-                                if !vehicle.vin.isEmpty {
-                                    Text("VIN • \(String(vehicle.vin.suffix(6)))")
-                                }
-                            }
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.white.opacity(0.82))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                        GarageStatusPill(
-                            title: "АКТИВЕН",
-                            color: .garageGreen,
-                            systemImage: "checkmark"
-                        )
-                        .fixedSize(horizontal: true, vertical: false)
-                    }
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+        VStack(spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(vehicle.displayName).font(.title2.weight(.light))
+                    if vehicle.year > 0 { Text(String(vehicle.year)).font(.caption.monospaced()).foregroundStyle(.secondary) }
                 }
-                .frame(height: 218)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Открыть фотографии автомобиля")
-
-            Button(action: onMileageTap) {
-                HStack(spacing: 14) {
-                    Image(systemName: "road.lanes")
-                        .font(.system(size: 23, weight: .semibold))
-                        .foregroundStyle(Color.garageGreen)
-                        .frame(width: 54, height: 54)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color.garageGreen.opacity(0.11))
-                        )
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("ТЕКУЩИЙ ПРОБЕГ")
-                            .font(.caption2.weight(.bold))
-                            .tracking(1)
-                            .foregroundStyle(.white.opacity(0.67))
-                        Text(Formatters.mileage(vehicle.currentMileage))
-                            .font(.title2.bold())
-                            .monospacedDigit()
-                            .foregroundStyle(.white)
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 6)
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(.white.opacity(0.65))
+                Spacer()
+                if vehicle.imageData != nil || vehicle.extraPhotoData != nil {
+                    Button(action: onPhotoTap) { Image(systemName: "photo.on.rectangle").frame(width: 44, height: 44) }
+                        .accessibilityLabel("Фотографии автомобиля")
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 5)
-                .padding(.bottom, 16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.black.opacity(0.93))
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Текущий пробег \(Formatters.mileage(vehicle.currentMileage)). Обновить")
+            GarageRoadScene()
+            GarageMileageSlab(vehicle: vehicle, edit: onMileageTap)
         }
-        .background(Color.black)
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(Color.white.opacity(0.10), lineWidth: 1)
-        }
-        .shadow(color: Color.black.opacity(0.30), radius: 20, y: 10)
     }
+}
 
-    @ViewBuilder
-    private var vehicleImage: some View {
-        if let data = vehicle.imageData, let image = UIImage(data: data) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-        } else {
-            ZStack {
-                LinearGradient(
-                    colors: [Color.garageSurfaceRaised, Color.garageBackground],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-
-                LinearGradient(
-                    colors: [Color.garageGreen.opacity(0.20), Color.clear],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-
-                Image(systemName: "car.side.fill")
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundStyle(Color.garageGreen)
-                    .padding(48)
-            }
-        }
+struct GarageMileageSlab: View {
+    let vehicle: Vehicle
+    let edit: () -> Void
+    var body: some View {
+        Button(action: edit) {
+            HStack(spacing: 10) {
+                Text("ПРОБЕГ").font(.system(size: 10, design: .monospaced)).tracking(1.4).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Text(vehicle.currentMileage.formatted(.number.grouping(.automatic)))
+                    .font(.system(size: 36, weight: .ultraLight)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
+                Text("км").font(.caption2.monospaced()).foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Image(systemName: "pencil").foregroundStyle(.secondary)
+            }.foregroundStyle(.primary).padding(18).garageCard(cornerRadius: 20)
+        }.buttonStyle(.plain).accessibilityLabel("Пробег \(vehicle.currentMileage) километров. Изменить")
     }
 }
 
@@ -587,23 +486,13 @@ private struct TaskListRow: View {
                 .font(.caption.bold())
                 .foregroundStyle(.tertiary)
         }
-        .padding(14)
-        .background(
-            LinearGradient(
-                colors: [color.opacity(0.065), Color.garageSurface],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 19, style: .continuous)
-                .stroke(color.opacity(0.13), lineWidth: 1)
-        }
+        .padding(.vertical, 17)
+        .overlay(alignment: .bottom) { Rectangle().fill(Color.garageStroke).frame(height: 0.5) }
+
     }
 }
 
-private struct UpdateMileageView: View {
+struct UpdateMileageView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     let vehicle: Vehicle
