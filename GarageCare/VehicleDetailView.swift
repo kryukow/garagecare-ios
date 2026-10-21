@@ -5,6 +5,10 @@ import SwiftUI
 struct VehicleDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var vehicle: Vehicle
+    let garageVehicles: [Vehicle]
+    let selectVehicle: ((Vehicle) -> Void)?
+    let addVehicle: (() -> Void)?
+    let deleteVehicle: (() -> Void)?
     @Query private var tasks: [MaintenanceTask]
 
     @AppStorage("warningKm") private var warningKm = 1_000
@@ -25,9 +29,15 @@ struct VehicleDetailView: View {
     @State private var selectedTask: MaintenanceTask?
     @State private var showingVehiclePhotos = false
     @State private var selectedVehiclePhoto = 0
+    @State private var showingGallery = false
 
-    init(vehicle: Vehicle) {
+    init(vehicle: Vehicle, garageVehicles: [Vehicle] = [], selectVehicle: ((Vehicle) -> Void)? = nil,
+         addVehicle: (() -> Void)? = nil, deleteVehicle: (() -> Void)? = nil) {
         self.vehicle = vehicle
+        self.garageVehicles = garageVehicles
+        self.selectVehicle = selectVehicle
+        self.addVehicle = addVehicle
+        self.deleteVehicle = deleteVehicle
         let vehicleID = vehicle.id
         _tasks = Query(
             filter: #Predicate<MaintenanceTask> { $0.vehicleID == vehicleID },
@@ -53,7 +63,9 @@ struct VehicleDetailView: View {
 
                 ScrollView(.vertical) {
                     VStack(spacing: 18) {
-                        VehicleHero(vehicle: vehicle, onPhotoTap: {
+                        VehicleHero(vehicle: vehicle, vehicles: garageVehicles, selectVehicle: selectVehicle,
+                                    addVehicle: addVehicle, deleteVehicle: deleteVehicle,
+                                    editPhoto: { activeModal = .editVehicle }, onPhotoTap: {
                             if !GaragePhotoArchive.images(
                                 primary: vehicle.imageData, additional: vehicle.extraPhotoData
                             ).isEmpty {
@@ -134,6 +146,7 @@ struct VehicleDetailView: View {
                                         }
                                 }
                                 .accessibilityLabel(taskLayoutMode == "grid" ? "Показать списком" : "Показать плитками")
+                                .accessibilityIdentifier("garage.layout.toggle")
 
                                 Button {
                                     activeModal = .addTask
@@ -209,6 +222,11 @@ struct VehicleDetailView: View {
                                 }
                             }
                         }
+                        Button { showingGallery = true } label: {
+                            Label("Иконки работ · тест набора", systemImage: "square.grid.3x3")
+                                .font(.caption.monospaced()).foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, minHeight: 48).contentShape(Rectangle())
+                        }.buttonStyle(.plain).accessibilityIdentifier("garage.iconGallery")
                     }
                     .frame(width: max(proxy.size.width - 32, 1))
                     .padding(.horizontal, 16)
@@ -218,7 +236,7 @@ struct VehicleDetailView: View {
                 .scrollIndicators(.hidden)
             }
         }
-        .navigationTitle(vehicle.displayName)
+        .navigationTitle(selectVehicle == nil ? vehicle.displayName : "Мой гараж")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -230,6 +248,7 @@ struct VehicleDetailView: View {
                 .accessibilityLabel("Изменить автомобиль")
             }
         }
+        .sheet(isPresented: $showingGallery) { GarageIconGallery() }
         .sheet(item: $selectedTask) { task in
             NavigationStack {
                 TaskDetailView(vehicle: vehicle, task: task)
@@ -257,24 +276,71 @@ struct VehicleDetailView: View {
 
 }
 
+enum GarageHeroPreference {
+    static func key(for id: UUID) -> String { "garageHeroMode." + id.uuidString }
+}
+
 private struct VehicleHero: View {
     let vehicle: Vehicle
+    let vehicles: [Vehicle]
+    let selectVehicle: ((Vehicle) -> Void)?
+    let addVehicle: (() -> Void)?
+    let deleteVehicle: (() -> Void)?
+    let editPhoto: () -> Void
     let onPhotoTap: () -> Void
     let onMileageTap: () -> Void
+    @AppStorage private var heroMode: String
+    init(vehicle: Vehicle, vehicles: [Vehicle], selectVehicle: ((Vehicle) -> Void)?,
+         addVehicle: (() -> Void)?, deleteVehicle: (() -> Void)?, editPhoto: @escaping () -> Void,
+         onPhotoTap: @escaping () -> Void, onMileageTap: @escaping () -> Void) {
+        self.vehicle = vehicle; self.vehicles = vehicles; self.selectVehicle = selectVehicle
+        self.addVehicle = addVehicle; self.deleteVehicle = deleteVehicle; self.editPhoto = editPhoto
+        self.onPhotoTap = onPhotoTap; self.onMileageTap = onMileageTap
+        _heroMode = AppStorage(wrappedValue: "animation", GarageHeroPreference.key(for: vehicle.id))
+    }
+    private var photo: UIImage? {
+        GaragePhotoArchive.images(primary: vehicle.imageData, additional: vehicle.extraPhotoData).first.flatMap { UIImage(data: $0) }
+    }
     var body: some View {
         VStack(spacing: 14) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(vehicle.displayName).font(.title2.weight(.light))
+                    if let selectVehicle {
+                        Menu {
+                            ForEach(vehicles) { car in Button(car.displayName) { selectVehicle(car) } }
+                            if let addVehicle { Button("Добавить автомобиль", systemImage: "plus", action: addVehicle) }
+                            if let deleteVehicle { Button("Удалить автомобиль", role: .destructive, action: deleteVehicle) }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(vehicle.displayName).font(.title2.weight(.light))
+                                Image(systemName: "chevron.down").font(.caption2)
+                            }.foregroundStyle(.primary).frame(minHeight: 44).contentShape(Rectangle())
+                        }.accessibilityIdentifier("garage.vehiclePicker")
+                    } else { Text(vehicle.displayName).font(.title2.weight(.light)) }
                     if vehicle.year > 0 { Text(String(vehicle.year)).font(.caption.monospaced()).foregroundStyle(.secondary) }
                 }
                 Spacer()
-                if vehicle.imageData != nil || vehicle.extraPhotoData != nil {
-                    Button(action: onPhotoTap) { Image(systemName: "photo.on.rectangle").frame(width: 44, height: 44) }
-                        .accessibilityLabel("Фотографии автомобиля")
-                }
+                Menu {
+                    Picker("Область автомобиля", selection: $heroMode) {
+                        Text("Анимация").tag("animation")
+                        Text("Фото").tag("photo").disabled(photo == nil)
+                    }
+                    Button("Добавить / изменить фото", systemImage: "photo", action: editPhoto)
+                    if photo != nil { Button("Открыть фотографии", action: onPhotoTap) }
+                } label: {
+                    Image(systemName: "photo.on.rectangle").frame(width: 44, height: 44).contentShape(Rectangle())
+                }.accessibilityLabel("Оформление автомобиля")
             }
-            GarageRoadScene()
+            if heroMode == "photo", let photo {
+                Button(action: onPhotoTap) {
+                    GeometryReader { proxy in
+                        Image(uiImage: photo).resizable().scaledToFill()
+                            .frame(width: proxy.size.width, height: proxy.size.height).clipped()
+                    }.frame(height: 130).clipShape(RoundedRectangle(cornerRadius: 20))
+                        .contentShape(RoundedRectangle(cornerRadius: 20))
+                }.buttonStyle(.plain).accessibilityLabel("Фотография автомобиля")
+                    .accessibilityIdentifier("garage.hero.photo")
+            } else { GarageRoadScene() }
             GarageMileageSlab(vehicle: vehicle, edit: onMileageTap)
         }
     }
@@ -596,6 +662,11 @@ private struct EditVehicleView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Bindable var vehicle: Vehicle
+    @AppStorage private var heroMode: String
+    init(vehicle: Vehicle) {
+        _vehicle = Bindable(wrappedValue: vehicle)
+        _heroMode = AppStorage(wrappedValue: "animation", GarageHeroPreference.key(for: vehicle.id))
+    }
     @State private var imageData: Data?
     @State private var extraPhotoData: Data?
     @State private var photoLoading = false
@@ -606,6 +677,16 @@ private struct EditVehicleView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Picker("Оформление главного экрана", selection: $heroMode) {
+                        Text("Анимация").tag("animation")
+                        Text("Фото").tag("photo").disabled(imageData == nil && extraPhotoData == nil)
+                    }.pickerStyle(.segmented).accessibilityIdentifier("garage.hero.mode")
+                    if imageData == nil && extraPhotoData == nil {
+                        Text("Добавьте фотографию ниже, чтобы показать её вместо анимации.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                } header: { Text("Область автомобиля") }
                 Section("Автомобиль") {
                     TextField("Марка", text: $vehicle.make)
                     TextField("Модель", text: $vehicle.model)
