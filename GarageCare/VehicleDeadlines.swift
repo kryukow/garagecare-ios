@@ -80,13 +80,13 @@ struct VehicleDeadlinesCard: View {
                     deadline("СТРАХОВКА", vehicle.insuranceNextDebitDate)
                 }
             }.padding(.vertical, 2)
-        }.accessibilityIdentifier("garage.deadlines").tint(.garageGreen).padding(14).garageCard(cornerRadius: 17)
+        }.tint(.garageGreen).padding(14).garageCard(cornerRadius: 17)
             .animation(.easeInOut(duration: 0.25), value: expanded)
     }
     private func deadline(_ title: String, _ date: Date?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.system(size: 8, design: .monospaced)).tracking(0.7).foregroundStyle(.secondary)
-            Text(date.map { $0.formatted(.dateTime.day().month(.abbreviated).year()) } ?? "Не задано")
+            Text(date.map { $0.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: "ru_RU"))) } ?? "Не задано")
                 .font(.caption.monospaced()).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }

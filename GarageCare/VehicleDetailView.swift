@@ -288,7 +288,7 @@ struct GarageMileageSlab: View {
             HStack(spacing: 10) {
                 Text("ПРОБЕГ").font(.system(size: 10, design: .monospaced)).tracking(1.4).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
-                Text(vehicle.currentMileage.formatted(.number.grouping(.automatic)))
+                Text(vehicle.currentMileage.formatted(.number.grouping(.automatic).locale(Locale(identifier: "ru_RU"))))
                     .font(.system(size: 36, weight: .ultraLight)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.5)
                 Text("км").font(.caption2.monospaced()).foregroundStyle(.secondary)
                 Spacer(minLength: 0)
