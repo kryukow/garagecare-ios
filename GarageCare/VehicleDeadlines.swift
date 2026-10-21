@@ -69,7 +69,7 @@ struct VehicleDeadlinesCard: View {
                     Text(vehicle.insuranceCost, format: .currency(code: vehicle.insuranceCurrency))
                 }
                 Button(action: edit) { Label("Изменить сроки и платежи", systemImage: "pencil") }
-                    .frame(minHeight: 44)
+                    .frame(minHeight: 44).accessibilityIdentifier("garage.deadlines.edit")
             }.font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(.top, 12)
         } label: {
             VStack(alignment: .leading, spacing: 10) {
@@ -80,7 +80,7 @@ struct VehicleDeadlinesCard: View {
                     deadline("СТРАХОВКА", vehicle.insuranceNextDebitDate)
                 }
             }.padding(.vertical, 2)
-        }.tint(.garageGreen).padding(14).garageCard(cornerRadius: 17)
+        }.accessibilityIdentifier("garage.deadlines").tint(.garageGreen).padding(14).garageCard(cornerRadius: 17)
             .animation(.easeInOut(duration: 0.25), value: expanded)
     }
     private func deadline(_ title: String, _ date: Date?) -> some View {

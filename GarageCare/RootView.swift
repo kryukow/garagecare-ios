@@ -23,7 +23,7 @@ struct RootView: View {
                         }.foregroundStyle(selected == index ? Color.primary : Color.secondary)
                             .frame(maxWidth: .infinity).frame(height: 64)
                             .contentShape(Rectangle())
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.plain).accessibilityLabel(titles[index])
                         .accessibilityAddTraits(selected == index ? .isSelected : [])
                 }
             }.padding(6).garageCard(cornerRadius: 25)

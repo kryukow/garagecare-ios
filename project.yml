@@ -7,13 +7,17 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    CURRENT_PROJECT_VERSION: 18
+    CURRENT_PROJECT_VERSION: 19
     MARKETING_VERSION: 1.5.0
     DEVELOPMENT_TEAM: ""
 targets:
   GarageCare:
     type: application
     platform: iOS
+    info:
+      path: GarageCare-Info.plist
+      properties:
+        CADisableMinimumFrameDurationOnPhone: true
     sources:
       - path: GarageCare
     settings:

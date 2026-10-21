@@ -72,6 +72,7 @@ jobs:
             -destination-timeout 120 \
             -resultBundlePath "$RUNNER_TEMP/GarageCareTests.xcresult" \
             -only-testing:GarageCareTests \
+            -only-testing:GarageCareUITests/GraphiteFlowTests \
             -parallel-testing-enabled NO \
             -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 30 \
@@ -100,6 +101,7 @@ jobs:
           test -d "$APP" || { echo "GarageCare.app не найден"; exit 1; }
 
           VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Info.plist")
+          test "$(/usr/libexec/PlistBuddy -c 'Print CADisableMinimumFrameDurationOnPhone' "$APP/Info.plist")" = "true"
           BUILD=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$APP/Info.plist")
           IPA_NAME="GarageCare-${VERSION}-build${BUILD}-unsigned.ipa"
           echo "IPA_NAME=$IPA_NAME" >> "$GITHUB_ENV"
