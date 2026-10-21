@@ -74,6 +74,7 @@ jobs:
             -only-testing:GarageCareTests \
             -only-testing:GarageCareUITests/GraphiteFlowTests \
             -parallel-testing-enabled NO \
+            -collect-test-diagnostics never \
             -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 60 \
             -maximum-test-execution-time-allowance 120 \
@@ -137,6 +138,7 @@ jobs:
             -resultBundlePath "$RUNNER_TEMP/GarageCareUITests.xcresult" \
             -only-testing:GarageCareUITests \
             -parallel-testing-enabled NO \
+            -collect-test-diagnostics never \
             -test-timeouts-enabled YES \
             -default-test-execution-time-allowance 60 \
             -maximum-test-execution-time-allowance 120 \

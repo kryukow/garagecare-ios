@@ -171,6 +171,7 @@ struct GarageView: View {
                                 Label("Иконки работ · тест набора", systemImage: "square.grid.3x3")
                                     .font(.caption.monospaced()).foregroundStyle(.secondary)
                                     .frame(maxWidth: .infinity, minHeight: 48)
+                                    .contentShape(Rectangle())
                             }.buttonStyle(.plain).accessibilityIdentifier("garage.iconGallery")
                         }
                         .padding(.horizontal, 20)

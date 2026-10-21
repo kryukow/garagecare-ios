@@ -21,14 +21,14 @@ final class GraphiteFlowTests: XCTestCase {
             let end = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.25))
             start.press(forDuration: 0.1, thenDragTo: end)
         }
-        XCTAssertTrue(gallery.isHittable, "Gallery must be visible before tapping")
         capture("Graphite-service-list")
+        XCTAssertTrue(gallery.isHittable, "Gallery must be visible before tapping\n" + app.debugDescription)
         gallery.tap()
         XCTAssertTrue(app.textFields["maintenance.gallery.title"].waitForExistence(timeout: 5))
         capture("Graphite-icons")
         app.buttons["Закрыть"].tap()
         app.buttons["Настройки"].tap()
-        XCTAssertTrue(app.staticTexts["Оформление"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Настройки"].waitForExistence(timeout: 5))
         capture("Graphite-settings")
     }
     private func capture(_ name: String) {

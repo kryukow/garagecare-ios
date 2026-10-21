@@ -7,13 +7,14 @@ struct RootView: View {
     private let titles = ["Гараж", "История", "Заправки", "Настройки"]
     private let symbols = ["car", "clock.arrow.circlepath", "fuelpump", "slider.horizontal.3"]
     var body: some View {
-        TabView(selection: $selected) {
-            GarageView().tag(0).toolbar(.hidden, for: .tabBar)
-            HistoryView().tag(1).toolbar(.hidden, for: .tabBar)
-            FuelTabView().tag(2).toolbar(.hidden, for: .tabBar)
-            SettingsView().tag(3).toolbar(.hidden, for: .tabBar)
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        VStack(spacing: 0) {
+            TabView(selection: $selected) {
+                GarageView().tabItem { Label("Гараж", systemImage: "car") }.tag(0).toolbar(.hidden, for: .tabBar)
+                HistoryView().tabItem { Label("История", systemImage: "clock.arrow.circlepath") }.tag(1).toolbar(.hidden, for: .tabBar)
+                FuelTabView().tabItem { Label("Заправки", systemImage: "fuelpump") }.tag(2).toolbar(.hidden, for: .tabBar)
+                SettingsView().tabItem { Label("Настройки", systemImage: "slider.horizontal.3") }.tag(3).toolbar(.hidden, for: .tabBar)
+            }.frame(maxWidth: .infinity, maxHeight: .infinity).clipped()
+
             HStack(spacing: 0) {
                 ForEach(0..<4) { index in
                     Button { selected = index } label: {
@@ -30,6 +31,7 @@ struct RootView: View {
                 .padding(.horizontal, 12).padding(.bottom, 4)
                 .background(Color.garageBackground.opacity(0.95))
         }
+        .background(Color.garageBackground.ignoresSafeArea())
         .tint(.garageGreen)
         .preferredColorScheme(appearance.colorScheme)
         .environment(\.locale, Locale(identifier: "ru_RU"))
